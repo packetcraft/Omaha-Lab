@@ -1,0 +1,45 @@
+# Environment
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env/
+
+# Vector store
+.chroma/
+
+# Logs (keep .gitkeep, ignore actual log files)
+logs/*.jsonl
+logs/*.log
+
+# IDE / AI assistant metadata
+.vscode/
+.idea/
+*.swp
+*.swo
+.claude/
+.gemini/
+
+# Audit logs (lab-generated, not source)
+audit/*.jsonl
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Workspace sandbox (user-generated content)
+workspace/*
+!workspace/.gitkeep

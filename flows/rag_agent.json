@@ -1,0 +1,642 @@
+{
+  "id": "a1b2c3d4-0003-0000-0000-000000000000",
+  "name": "Omaha-Lab: RAG Agent",
+  "description": "Stage 5: Base agent with Retrieval-Augmented Generation. Markdown files in context_docs/ are chunked, embedded with nomic-embed-text (Ollama), stored in ChromaDB, and the top-3 relevant chunks are prepended to the agent context on every turn. Use --rag on in the CLI agent.",
+  "data": {
+    "nodes": [
+      {
+        "id": "DirectoryLoader-ra01",
+        "type": "genericNode",
+        "position": { "x": -600, "y": 200 },
+        "data": {
+          "id": "DirectoryLoader-ra01",
+          "type": "DirectoryLoader",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "path": {
+                "advanced": false,
+                "display_name": "Path",
+                "dynamic": false,
+                "info": "Directory containing Markdown context documents",
+                "list": false,
+                "name": "path",
+                "required": true,
+                "show": true,
+                "type": "str",
+                "value": "./context_docs"
+              },
+              "glob": {
+                "advanced": false,
+                "display_name": "Glob Pattern",
+                "dynamic": false,
+                "info": "File pattern to match",
+                "list": false,
+                "name": "glob",
+                "required": false,
+                "show": true,
+                "type": "str",
+                "value": "**/*.md"
+              },
+              "load_hidden": {
+                "advanced": true,
+                "display_name": "Load Hidden Files",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "load_hidden",
+                "required": false,
+                "show": true,
+                "type": "bool",
+                "value": false
+              },
+              "recursive": {
+                "advanced": true,
+                "display_name": "Recursive",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "recursive",
+                "required": false,
+                "show": true,
+                "type": "bool",
+                "value": true
+              }
+            },
+            "description": "Load all .md files from context_docs/ — company_policy.md, employee_handbook.md, threat_intel_report.md, poisoned_policy.md.",
+            "display_name": "Directory Loader",
+            "documentation": "",
+            "base_classes": ["Document"],
+            "output_types": ["Document"]
+          }
+        }
+      },
+      {
+        "id": "CharacterTextSplitter-ra02",
+        "type": "genericNode",
+        "position": { "x": -300, "y": 200 },
+        "data": {
+          "id": "CharacterTextSplitter-ra02",
+          "type": "CharacterTextSplitter",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "documents": {
+                "advanced": false,
+                "display_name": "Documents",
+                "dynamic": false,
+                "info": "Raw documents from loader",
+                "list": true,
+                "name": "documents",
+                "required": true,
+                "show": true,
+                "type": "Document",
+                "value": ""
+              },
+              "chunk_size": {
+                "advanced": false,
+                "display_name": "Chunk Size",
+                "dynamic": false,
+                "info": "Target chunk size in characters (~600 matches the CLI embedder)",
+                "list": false,
+                "name": "chunk_size",
+                "required": false,
+                "show": true,
+                "type": "int",
+                "value": 600
+              },
+              "chunk_overlap": {
+                "advanced": false,
+                "display_name": "Chunk Overlap",
+                "dynamic": false,
+                "info": "Character overlap between adjacent chunks",
+                "list": false,
+                "name": "chunk_overlap",
+                "required": false,
+                "show": true,
+                "type": "int",
+                "value": 100
+              },
+              "separator": {
+                "advanced": true,
+                "display_name": "Separator",
+                "dynamic": false,
+                "info": "Split on double newline (paragraph boundary) first",
+                "list": false,
+                "name": "separator",
+                "required": false,
+                "show": true,
+                "type": "str",
+                "value": "\n\n"
+              }
+            },
+            "description": "Split loaded Markdown documents into ~600-character chunks for embedding.",
+            "display_name": "Text Splitter",
+            "documentation": "",
+            "base_classes": ["Document"],
+            "output_types": ["Document"]
+          }
+        }
+      },
+      {
+        "id": "OllamaEmbeddings-ra03",
+        "type": "genericNode",
+        "position": { "x": -600, "y": 550 },
+        "data": {
+          "id": "OllamaEmbeddings-ra03",
+          "type": "OllamaEmbeddings",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "base_url": {
+                "advanced": false,
+                "display_name": "Ollama Base URL",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "base_url",
+                "required": false,
+                "show": true,
+                "type": "str",
+                "value": "http://localhost:11434"
+              },
+              "model": {
+                "advanced": false,
+                "display_name": "Model",
+                "dynamic": false,
+                "info": "Run: ollama pull nomic-embed-text",
+                "list": false,
+                "name": "model",
+                "required": false,
+                "show": true,
+                "type": "str",
+                "value": "nomic-embed-text"
+              }
+            },
+            "description": "Fully local embeddings via Ollama. Run `ollama pull nomic-embed-text` before use.",
+            "display_name": "Ollama Embeddings",
+            "documentation": "",
+            "base_classes": ["Embeddings"],
+            "output_types": ["Embeddings"]
+          }
+        }
+      },
+      {
+        "id": "Chroma-ra04",
+        "type": "genericNode",
+        "position": { "x": -50, "y": 370 },
+        "data": {
+          "id": "Chroma-ra04",
+          "type": "Chroma",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "documents": {
+                "advanced": false,
+                "display_name": "Documents",
+                "dynamic": false,
+                "info": "Chunked documents to index",
+                "list": true,
+                "name": "documents",
+                "required": false,
+                "show": true,
+                "type": "Document",
+                "value": ""
+              },
+              "embedding": {
+                "advanced": false,
+                "display_name": "Embedding",
+                "dynamic": false,
+                "info": "nomic-embed-text via Ollama",
+                "list": false,
+                "name": "embedding",
+                "required": true,
+                "show": true,
+                "type": "Embeddings",
+                "value": ""
+              },
+              "collection_name": {
+                "advanced": false,
+                "display_name": "Collection Name",
+                "dynamic": false,
+                "info": "ChromaDB collection — matches the CLI agent's .chroma/ directory",
+                "list": false,
+                "name": "collection_name",
+                "required": false,
+                "show": true,
+                "type": "str",
+                "value": "omaha_lab_context"
+              },
+              "persist_directory": {
+                "advanced": false,
+                "display_name": "Persist Directory",
+                "dynamic": false,
+                "info": "Local path for the ChromaDB database",
+                "list": false,
+                "name": "persist_directory",
+                "required": false,
+                "show": true,
+                "type": "str",
+                "value": "./.chroma"
+              },
+              "number_of_results": {
+                "advanced": false,
+                "display_name": "Number of Results",
+                "dynamic": false,
+                "info": "Top-K chunks to retrieve per query",
+                "list": false,
+                "name": "number_of_results",
+                "required": false,
+                "show": true,
+                "type": "int",
+                "value": 3
+              },
+              "search_type": {
+                "advanced": true,
+                "display_name": "Search Type",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "search_type",
+                "options": ["Similarity", "MMR"],
+                "required": false,
+                "show": true,
+                "type": "str",
+                "value": "Similarity"
+              }
+            },
+            "description": "Local ChromaDB vector store. Persists to .chroma/. Indexes Markdown chunks and retrieves top-3 relevant passages per query.",
+            "display_name": "ChromaDB",
+            "documentation": "",
+            "base_classes": ["VectorStore", "Document"],
+            "output_types": ["Document"]
+          }
+        }
+      },
+      {
+        "id": "ChatInput-ra05",
+        "type": "genericNode",
+        "position": { "x": 100, "y": 80 },
+        "data": {
+          "id": "ChatInput-ra05",
+          "type": "ChatInput",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "input_value": {
+                "advanced": false,
+                "display_name": "Text",
+                "dynamic": false,
+                "info": "User query — also used as the retrieval query against ChromaDB",
+                "list": false,
+                "load_from_db": false,
+                "multiline": true,
+                "name": "input_value",
+                "placeholder": "What is the company's remote work policy?",
+                "required": false,
+                "show": true,
+                "type": "str",
+                "value": ""
+              },
+              "sender_name": {
+                "advanced": true,
+                "display_name": "Sender Name",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "sender_name",
+                "required": false,
+                "show": true,
+                "type": "str",
+                "value": "User"
+              }
+            },
+            "description": "User message — drives both retrieval and agent reasoning.",
+            "display_name": "Chat Input",
+            "documentation": "",
+            "base_classes": ["Message"],
+            "output_types": ["Message"]
+          }
+        }
+      },
+      {
+        "id": "OllamaModel-ra06",
+        "type": "genericNode",
+        "position": { "x": 100, "y": 650 },
+        "data": {
+          "id": "OllamaModel-ra06",
+          "type": "OllamaModel",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "base_url": {
+                "advanced": false,
+                "display_name": "Ollama Base URL",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "base_url",
+                "required": false,
+                "show": true,
+                "type": "str",
+                "value": "http://localhost:11434"
+              },
+              "model_name": {
+                "advanced": false,
+                "display_name": "Model Name",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "model_name",
+                "required": true,
+                "show": true,
+                "type": "str",
+                "value": "llama3.1:8b"
+              },
+              "temperature": {
+                "advanced": false,
+                "display_name": "Temperature",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "temperature",
+                "required": false,
+                "show": true,
+                "type": "float",
+                "value": 0.2
+              }
+            },
+            "description": "Ollama LLM — reasons over user query + retrieved context.",
+            "display_name": "Ollama",
+            "documentation": "",
+            "base_classes": ["LanguageModel"],
+            "output_types": ["LanguageModel"]
+          }
+        }
+      },
+      {
+        "id": "DuckDuckGoSearch-ra07",
+        "type": "genericNode",
+        "position": { "x": -350, "y": 850 },
+        "data": {
+          "id": "DuckDuckGoSearch-ra07",
+          "type": "DuckDuckGoSearchRun",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "max_results": {
+                "advanced": false,
+                "display_name": "Max Results",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "max_results",
+                "required": false,
+                "show": true,
+                "type": "int",
+                "value": 5
+              }
+            },
+            "description": "DuckDuckGo web search for live data not in the RAG store.",
+            "display_name": "DuckDuckGo Search",
+            "documentation": "",
+            "base_classes": ["Tool"],
+            "output_types": ["Tool"]
+          }
+        }
+      },
+      {
+        "id": "ReActAgentComponent-ra08",
+        "type": "genericNode",
+        "position": { "x": 600, "y": 420 },
+        "data": {
+          "id": "ReActAgentComponent-ra08",
+          "type": "ReActAgentComponent",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "input_value": {
+                "advanced": false,
+                "display_name": "Input",
+                "dynamic": false,
+                "info": "User message from Chat Input",
+                "list": false,
+                "name": "input_value",
+                "required": true,
+                "show": true,
+                "type": "Message",
+                "value": ""
+              },
+              "llm": {
+                "advanced": false,
+                "display_name": "Language Model",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "llm",
+                "required": true,
+                "show": true,
+                "type": "LanguageModel",
+                "value": ""
+              },
+              "tools": {
+                "advanced": false,
+                "display_name": "Tools",
+                "dynamic": false,
+                "info": "",
+                "list": true,
+                "name": "tools",
+                "required": false,
+                "show": true,
+                "type": "Tool",
+                "value": ""
+              },
+              "context_documents": {
+                "advanced": false,
+                "display_name": "Retrieved Context",
+                "dynamic": false,
+                "info": "Top-3 chunks from ChromaDB prepended to the agent context",
+                "list": true,
+                "name": "context_documents",
+                "required": false,
+                "show": true,
+                "type": "Document",
+                "value": ""
+              },
+              "system_prompt": {
+                "advanced": false,
+                "display_name": "System Prompt",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "multiline": true,
+                "name": "system_prompt",
+                "required": false,
+                "show": true,
+                "type": "str",
+                "value": "You are a helpful assistant. Use the provided context documents to answer questions accurately. If the context does not contain the answer, say so and optionally use the web search tool for live information."
+              },
+              "max_iterations": {
+                "advanced": false,
+                "display_name": "Max Iterations",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "max_iterations",
+                "required": false,
+                "show": true,
+                "type": "int",
+                "value": 15
+              },
+              "verbose": {
+                "advanced": true,
+                "display_name": "Verbose",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "verbose",
+                "required": false,
+                "show": true,
+                "type": "bool",
+                "value": true
+              }
+            },
+            "description": "ReAct agent — reasons over retrieved context + live tools. Enable verbose to see the retrieval trace.",
+            "display_name": "ReAct Agent (RAG)",
+            "documentation": "",
+            "base_classes": ["Message"],
+            "output_types": ["Message"]
+          }
+        }
+      },
+      {
+        "id": "ChatOutput-ra09",
+        "type": "genericNode",
+        "position": { "x": 1100, "y": 420 },
+        "data": {
+          "id": "ChatOutput-ra09",
+          "type": "ChatOutput",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "input_value": {
+                "advanced": false,
+                "display_name": "Text",
+                "dynamic": false,
+                "info": "RAG-grounded agent response",
+                "list": false,
+                "name": "input_value",
+                "required": false,
+                "show": true,
+                "type": "Message",
+                "value": ""
+              },
+              "sender_name": {
+                "advanced": true,
+                "display_name": "Sender Name",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "sender_name",
+                "required": false,
+                "show": true,
+                "type": "str",
+                "value": "AI (RAG)"
+              }
+            },
+            "description": "Display the RAG-grounded response.",
+            "display_name": "Chat Output",
+            "documentation": "",
+            "base_classes": ["Message"],
+            "output_types": ["Message"]
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "reactflow__edge-DirectoryLoader-ra01-CharacterTextSplitter-ra02",
+        "source": "DirectoryLoader-ra01",
+        "sourceHandle": "{\"dataType\":\"DirectoryLoader\",\"id\":\"DirectoryLoader-ra01\",\"name\":\"documents\",\"output_types\":[\"Document\"]}",
+        "target": "CharacterTextSplitter-ra02",
+        "targetHandle": "{\"fieldName\":\"documents\",\"id\":\"CharacterTextSplitter-ra02\",\"inputTypes\":[\"Document\"],\"type\":\"Document\"}",
+        "type": "default",
+        "animated": false
+      },
+      {
+        "id": "reactflow__edge-CharacterTextSplitter-ra02-Chroma-ra04",
+        "source": "CharacterTextSplitter-ra02",
+        "sourceHandle": "{\"dataType\":\"CharacterTextSplitter\",\"id\":\"CharacterTextSplitter-ra02\",\"name\":\"documents\",\"output_types\":[\"Document\"]}",
+        "target": "Chroma-ra04",
+        "targetHandle": "{\"fieldName\":\"documents\",\"id\":\"Chroma-ra04\",\"inputTypes\":[\"Document\"],\"type\":\"Document\"}",
+        "type": "default",
+        "animated": false
+      },
+      {
+        "id": "reactflow__edge-OllamaEmbeddings-ra03-Chroma-ra04",
+        "source": "OllamaEmbeddings-ra03",
+        "sourceHandle": "{\"dataType\":\"OllamaEmbeddings\",\"id\":\"OllamaEmbeddings-ra03\",\"name\":\"embeddings\",\"output_types\":[\"Embeddings\"]}",
+        "target": "Chroma-ra04",
+        "targetHandle": "{\"fieldName\":\"embedding\",\"id\":\"Chroma-ra04\",\"inputTypes\":[\"Embeddings\"],\"type\":\"Embeddings\"}",
+        "type": "default",
+        "animated": false
+      },
+      {
+        "id": "reactflow__edge-ChatInput-ra05-Chroma-ra04-query",
+        "source": "ChatInput-ra05",
+        "sourceHandle": "{\"dataType\":\"ChatInput\",\"id\":\"ChatInput-ra05\",\"name\":\"message\",\"output_types\":[\"Message\"]}",
+        "target": "Chroma-ra04",
+        "targetHandle": "{\"fieldName\":\"search_query\",\"id\":\"Chroma-ra04\",\"inputTypes\":[\"Message\",\"str\"],\"type\":\"str\"}",
+        "type": "default",
+        "animated": false
+      },
+      {
+        "id": "reactflow__edge-ChatInput-ra05-ReActAgentComponent-ra08",
+        "source": "ChatInput-ra05",
+        "sourceHandle": "{\"dataType\":\"ChatInput\",\"id\":\"ChatInput-ra05\",\"name\":\"message\",\"output_types\":[\"Message\"]}",
+        "target": "ReActAgentComponent-ra08",
+        "targetHandle": "{\"fieldName\":\"input_value\",\"id\":\"ReActAgentComponent-ra08\",\"inputTypes\":[\"Message\",\"str\"],\"type\":\"Message\"}",
+        "type": "default",
+        "animated": false
+      },
+      {
+        "id": "reactflow__edge-OllamaModel-ra06-ReActAgentComponent-ra08",
+        "source": "OllamaModel-ra06",
+        "sourceHandle": "{\"dataType\":\"OllamaModel\",\"id\":\"OllamaModel-ra06\",\"name\":\"model\",\"output_types\":[\"LanguageModel\"]}",
+        "target": "ReActAgentComponent-ra08",
+        "targetHandle": "{\"fieldName\":\"llm\",\"id\":\"ReActAgentComponent-ra08\",\"inputTypes\":[\"LanguageModel\"],\"type\":\"LanguageModel\"}",
+        "type": "default",
+        "animated": false
+      },
+      {
+        "id": "reactflow__edge-Chroma-ra04-ReActAgentComponent-ra08",
+        "source": "Chroma-ra04",
+        "sourceHandle": "{\"dataType\":\"Chroma\",\"id\":\"Chroma-ra04\",\"name\":\"documents\",\"output_types\":[\"Document\"]}",
+        "target": "ReActAgentComponent-ra08",
+        "targetHandle": "{\"fieldName\":\"context_documents\",\"id\":\"ReActAgentComponent-ra08\",\"inputTypes\":[\"Document\"],\"type\":\"Document\"}",
+        "type": "default",
+        "animated": false
+      },
+      {
+        "id": "reactflow__edge-DuckDuckGoSearch-ra07-ReActAgentComponent-ra08",
+        "source": "DuckDuckGoSearch-ra07",
+        "sourceHandle": "{\"dataType\":\"DuckDuckGoSearchRun\",\"id\":\"DuckDuckGoSearch-ra07\",\"name\":\"tool\",\"output_types\":[\"Tool\"]}",
+        "target": "ReActAgentComponent-ra08",
+        "targetHandle": "{\"fieldName\":\"tools\",\"id\":\"ReActAgentComponent-ra08\",\"inputTypes\":[\"Tool\"],\"type\":\"Tool\"}",
+        "type": "default",
+        "animated": false
+      },
+      {
+        "id": "reactflow__edge-ReActAgentComponent-ra08-ChatOutput-ra09",
+        "source": "ReActAgentComponent-ra08",
+        "sourceHandle": "{\"dataType\":\"ReActAgentComponent\",\"id\":\"ReActAgentComponent-ra08\",\"name\":\"response\",\"output_types\":[\"Message\"]}",
+        "target": "ChatOutput-ra09",
+        "targetHandle": "{\"fieldName\":\"input_value\",\"id\":\"ChatOutput-ra09\",\"inputTypes\":[\"Message\",\"str\"],\"type\":\"Message\"}",
+        "type": "default",
+        "animated": false
+      }
+    ],
+    "viewport": { "x": 0, "y": 0, "zoom": 0.7 }
+  },
+  "is_component": false
+}

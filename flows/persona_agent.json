@@ -1,0 +1,578 @@
+{
+  "id": "a1b2c3d4-0004-0000-0000-000000000000",
+  "name": "Omaha-Lab: Persona Agent",
+  "description": "Stage 4: Base agent with swappable system prompt personas. Select a persona from the dropdown (customer_service, hr_assistant, security_analyst, code_assistant) to inject a different identity, tone, and tool permission scope into the agent. Mirrors the --persona CLI flag.",
+  "data": {
+    "nodes": [
+      {
+        "id": "Prompt-pa01",
+        "type": "genericNode",
+        "position": { "x": 100, "y": 80 },
+        "data": {
+          "id": "Prompt-pa01",
+          "type": "Prompt",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "template": {
+                "advanced": false,
+                "display_name": "Template",
+                "dynamic": false,
+                "info": "System prompt for the selected persona. {persona_name} is substituted at runtime.",
+                "list": false,
+                "multiline": true,
+                "name": "template",
+                "required": true,
+                "show": true,
+                "type": "prompt",
+                "value": "You are {persona_name}.\n\n{persona_instructions}\n\nYour allowed tools: {allowed_tools}\nRisk level: {risk_level}"
+              },
+              "persona_name": {
+                "advanced": false,
+                "display_name": "Persona Name",
+                "dynamic": false,
+                "info": "Human-readable identity injected into the system prompt",
+                "list": false,
+                "name": "persona_name",
+                "options": [
+                  "Aria (Customer Service Bot)",
+                  "Jordan (HR Assistant)",
+                  "Morgan (Security Analyst)",
+                  "Riley (Code Assistant)"
+                ],
+                "required": false,
+                "show": true,
+                "type": "str",
+                "value": "Aria (Customer Service Bot)"
+              },
+              "persona_instructions": {
+                "advanced": false,
+                "display_name": "Persona Instructions",
+                "dynamic": false,
+                "info": "Paste the system_prompt field from the YAML persona file, or use a preset below.",
+                "list": false,
+                "multiline": true,
+                "name": "persona_instructions",
+                "required": false,
+                "show": true,
+                "type": "str",
+                "value": "You are Aria, a friendly customer service representative for Acme Corp. You help customers with order inquiries, product questions, and support issues. You never discuss competitors, internal systems, pricing strategies, or confidential business information. If asked about anything outside your scope, politely decline and redirect to the relevant department."
+              },
+              "allowed_tools": {
+                "advanced": false,
+                "display_name": "Allowed Tools",
+                "dynamic": false,
+                "info": "Comma-separated list of tool names this persona may use (mirrors personas/*.yaml allowed_tools)",
+                "list": false,
+                "name": "allowed_tools",
+                "required": false,
+                "show": true,
+                "type": "str",
+                "value": "web_search, get_weather"
+              },
+              "risk_level": {
+                "advanced": false,
+                "display_name": "Risk Level",
+                "dynamic": false,
+                "info": "Persona risk level — shown in audit logs",
+                "list": false,
+                "name": "risk_level",
+                "options": ["low", "medium", "high"],
+                "required": false,
+                "show": true,
+                "type": "str",
+                "value": "low"
+              }
+            },
+            "description": "System prompt template for the selected persona. Maps to the YAML files in personas/. Change persona_name and persona_instructions to switch identity.",
+            "display_name": "Persona System Prompt",
+            "documentation": "",
+            "base_classes": ["Prompt", "str"],
+            "output_types": ["Prompt"]
+          }
+        }
+      },
+      {
+        "id": "TextInput-pa02",
+        "type": "genericNode",
+        "position": { "x": 100, "y": 450 },
+        "data": {
+          "id": "TextInput-pa02",
+          "type": "TextInput",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "input_value": {
+                "advanced": false,
+                "display_name": "Persona YAML Presets",
+                "dynamic": false,
+                "info": "Quick-reference: paste any of the 4 persona YAML system_prompts here to load them into the Persona System Prompt node above.",
+                "list": false,
+                "multiline": true,
+                "name": "input_value",
+                "placeholder": "Paste persona system_prompt from personas/customer_service.yaml ...",
+                "required": false,
+                "show": true,
+                "type": "str",
+                "value": "PRESETS — copy/paste into 'Persona Instructions' above:\n\n=== customer_service ===\nYou are Aria, a friendly customer service representative for Acme Corp...\n\n=== hr_assistant ===\nYou are Jordan, an HR assistant at Initech. You help employees with HR policies, benefits questions, and onboarding...\n\n=== security_analyst ===\nYou are Morgan, a SOC analyst. You summarize threat intelligence reports, investigate alerts, and provide security recommendations...\n\n=== code_assistant ===\nYou are Riley, a coding assistant. You help developers write, review, and explain code snippets across multiple languages..."
+              }
+            },
+            "description": "Reference card — paste persona system_prompt values here to populate the Prompt node.",
+            "display_name": "Persona Presets (Reference)",
+            "documentation": "",
+            "base_classes": ["Message"],
+            "output_types": ["Message"]
+          }
+        }
+      },
+      {
+        "id": "ChatInput-pa03",
+        "type": "genericNode",
+        "position": { "x": 100, "y": 680 },
+        "data": {
+          "id": "ChatInput-pa03",
+          "type": "ChatInput",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "input_value": {
+                "advanced": false,
+                "display_name": "Text",
+                "dynamic": false,
+                "info": "User message to the persona agent",
+                "list": false,
+                "load_from_db": false,
+                "multiline": true,
+                "name": "input_value",
+                "placeholder": "Hi, I need help with my order.",
+                "required": false,
+                "show": true,
+                "type": "str",
+                "value": ""
+              },
+              "sender_name": {
+                "advanced": true,
+                "display_name": "Sender Name",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "sender_name",
+                "required": false,
+                "show": true,
+                "type": "str",
+                "value": "User"
+              }
+            },
+            "description": "User message — routed to the agent after system prompt injection.",
+            "display_name": "Chat Input",
+            "documentation": "",
+            "base_classes": ["Message"],
+            "output_types": ["Message"]
+          }
+        }
+      },
+      {
+        "id": "OllamaModel-pa04",
+        "type": "genericNode",
+        "position": { "x": 100, "y": 950 },
+        "data": {
+          "id": "OllamaModel-pa04",
+          "type": "OllamaModel",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "base_url": {
+                "advanced": false,
+                "display_name": "Ollama Base URL",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "base_url",
+                "required": false,
+                "show": true,
+                "type": "str",
+                "value": "http://localhost:11434"
+              },
+              "model_name": {
+                "advanced": false,
+                "display_name": "Model Name",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "model_name",
+                "required": true,
+                "show": true,
+                "type": "str",
+                "value": "llama3.1:8b"
+              },
+              "temperature": {
+                "advanced": false,
+                "display_name": "Temperature",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "temperature",
+                "required": false,
+                "show": true,
+                "type": "float",
+                "value": 0.2
+              }
+            },
+            "description": "Local Ollama LLM for agent reasoning.",
+            "display_name": "Ollama",
+            "documentation": "",
+            "base_classes": ["LanguageModel"],
+            "output_types": ["LanguageModel"]
+          }
+        }
+      },
+      {
+        "id": "DuckDuckGoSearch-pa05",
+        "type": "genericNode",
+        "position": { "x": -350, "y": 600 },
+        "data": {
+          "id": "DuckDuckGoSearch-pa05",
+          "type": "DuckDuckGoSearchRun",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "max_results": {
+                "advanced": false,
+                "display_name": "Max Results",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "max_results",
+                "required": false,
+                "show": true,
+                "type": "int",
+                "value": 5
+              }
+            },
+            "description": "DuckDuckGo search — available to personas with web_search in allowed_tools.",
+            "display_name": "DuckDuckGo Search",
+            "documentation": "",
+            "base_classes": ["Tool"],
+            "output_types": ["Tool"]
+          }
+        }
+      },
+      {
+        "id": "PythonFunctionTool-pa06",
+        "type": "genericNode",
+        "position": { "x": -350, "y": 850 },
+        "data": {
+          "id": "PythonFunctionTool-pa06",
+          "type": "PythonFunctionTool",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "name": {
+                "advanced": false,
+                "display_name": "Tool Name",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "name",
+                "required": true,
+                "show": true,
+                "type": "str",
+                "value": "get_weather"
+              },
+              "description": {
+                "advanced": false,
+                "display_name": "Tool Description",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "multiline": true,
+                "name": "description",
+                "required": true,
+                "show": true,
+                "type": "str",
+                "value": "Get current weather for a city. Args: city (str)."
+              },
+              "tool_code": {
+                "advanced": false,
+                "display_name": "Tool Code",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "multiline": true,
+                "name": "tool_code",
+                "required": true,
+                "show": true,
+                "type": "code",
+                "value": "import os, requests\n\ndef get_weather(city: str) -> str:\n    key = os.getenv('WEATHER_API_KEY', '')\n    if not key:\n        return 'Error: WEATHER_API_KEY not set'\n    r = requests.get('https://api.openweathermap.org/data/2.5/weather',\n        params={'q': city, 'appid': key, 'units': 'imperial'}, timeout=10)\n    d = r.json()\n    return f\"{d['name']}: {d['weather'][0]['description']}, {d['main']['temp']}°F\"\n"
+              }
+            },
+            "description": "OpenWeatherMap weather tool.",
+            "display_name": "Weather Tool",
+            "documentation": "",
+            "base_classes": ["Tool"],
+            "output_types": ["Tool"]
+          }
+        }
+      },
+      {
+        "id": "PythonFunctionTool-pa07",
+        "type": "genericNode",
+        "position": { "x": -350, "y": 1100 },
+        "data": {
+          "id": "PythonFunctionTool-pa07",
+          "type": "PythonFunctionTool",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "name": {
+                "advanced": false,
+                "display_name": "Tool Name",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "name",
+                "required": true,
+                "show": true,
+                "type": "str",
+                "value": "write_file"
+              },
+              "description": {
+                "advanced": false,
+                "display_name": "Tool Description",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "multiline": true,
+                "name": "description",
+                "required": true,
+                "show": true,
+                "type": "str",
+                "value": "Write content to a file in workspace/. Args: filename (str), content (str). HIGH-RISK — only available to hr_assistant and code_assistant personas."
+              },
+              "tool_code": {
+                "advanced": false,
+                "display_name": "Tool Code",
+                "dynamic": false,
+                "info": "Only wire this tool to the agent when the selected persona's allowed_tools includes write_file",
+                "list": false,
+                "multiline": true,
+                "name": "tool_code",
+                "required": true,
+                "show": true,
+                "type": "code",
+                "value": "from pathlib import Path\nWORKSPACE = Path('workspace').resolve()\n\ndef write_file(filename: str, content: str) -> str:\n    target = (WORKSPACE / filename).resolve()\n    try: target.relative_to(WORKSPACE)\n    except ValueError: return 'Error: path traversal blocked'\n    target.parent.mkdir(parents=True, exist_ok=True)\n    target.write_text(content, encoding='utf-8')\n    return f'Wrote {len(content)} chars to workspace/{filename}'\n"
+              }
+            },
+            "description": "Write file tool — HIGH-RISK. Disconnect this node when using low-risk personas (customer_service, security_analyst).",
+            "display_name": "Write File Tool",
+            "documentation": "",
+            "base_classes": ["Tool"],
+            "output_types": ["Tool"]
+          }
+        }
+      },
+      {
+        "id": "ReActAgentComponent-pa08",
+        "type": "genericNode",
+        "position": { "x": 620, "y": 550 },
+        "data": {
+          "id": "ReActAgentComponent-pa08",
+          "type": "ReActAgentComponent",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "input_value": {
+                "advanced": false,
+                "display_name": "Input",
+                "dynamic": false,
+                "info": "User message",
+                "list": false,
+                "name": "input_value",
+                "required": true,
+                "show": true,
+                "type": "Message",
+                "value": ""
+              },
+              "llm": {
+                "advanced": false,
+                "display_name": "Language Model",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "llm",
+                "required": true,
+                "show": true,
+                "type": "LanguageModel",
+                "value": ""
+              },
+              "tools": {
+                "advanced": false,
+                "display_name": "Tools",
+                "dynamic": false,
+                "info": "Only connect tools listed in the persona's allowed_tools field",
+                "list": true,
+                "name": "tools",
+                "required": false,
+                "show": true,
+                "type": "Tool",
+                "value": ""
+              },
+              "system_prompt": {
+                "advanced": false,
+                "display_name": "System Prompt",
+                "dynamic": false,
+                "info": "Injected from the Persona System Prompt node above",
+                "list": false,
+                "multiline": true,
+                "name": "system_prompt",
+                "required": false,
+                "show": true,
+                "type": "Prompt",
+                "value": ""
+              },
+              "max_iterations": {
+                "advanced": false,
+                "display_name": "Max Iterations",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "max_iterations",
+                "required": false,
+                "show": true,
+                "type": "int",
+                "value": 15
+              },
+              "verbose": {
+                "advanced": true,
+                "display_name": "Verbose",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "verbose",
+                "required": false,
+                "show": true,
+                "type": "bool",
+                "value": true
+              }
+            },
+            "description": "ReAct agent with persona-injected system prompt. Tool set should match the persona's allowed_tools list — disconnect tools not in scope.",
+            "display_name": "ReAct Agent (Persona)",
+            "documentation": "",
+            "base_classes": ["Message"],
+            "output_types": ["Message"]
+          }
+        }
+      },
+      {
+        "id": "ChatOutput-pa09",
+        "type": "genericNode",
+        "position": { "x": 1140, "y": 550 },
+        "data": {
+          "id": "ChatOutput-pa09",
+          "type": "ChatOutput",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "input_value": {
+                "advanced": false,
+                "display_name": "Text",
+                "dynamic": false,
+                "info": "Persona-driven agent response",
+                "list": false,
+                "name": "input_value",
+                "required": false,
+                "show": true,
+                "type": "Message",
+                "value": ""
+              },
+              "sender_name": {
+                "advanced": true,
+                "display_name": "Sender Name",
+                "dynamic": false,
+                "info": "Set to the persona name for correct chat display",
+                "list": false,
+                "name": "sender_name",
+                "required": false,
+                "show": true,
+                "type": "str",
+                "value": "Aria (Customer Service)"
+              }
+            },
+            "description": "Display the persona agent response. Update sender_name to match the active persona.",
+            "display_name": "Chat Output",
+            "documentation": "",
+            "base_classes": ["Message"],
+            "output_types": ["Message"]
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "reactflow__edge-Prompt-pa01-ReActAgentComponent-pa08",
+        "source": "Prompt-pa01",
+        "sourceHandle": "{\"dataType\":\"Prompt\",\"id\":\"Prompt-pa01\",\"name\":\"prompt\",\"output_types\":[\"Prompt\"]}",
+        "target": "ReActAgentComponent-pa08",
+        "targetHandle": "{\"fieldName\":\"system_prompt\",\"id\":\"ReActAgentComponent-pa08\",\"inputTypes\":[\"Prompt\",\"str\"],\"type\":\"Prompt\"}",
+        "type": "default",
+        "animated": false
+      },
+      {
+        "id": "reactflow__edge-ChatInput-pa03-ReActAgentComponent-pa08",
+        "source": "ChatInput-pa03",
+        "sourceHandle": "{\"dataType\":\"ChatInput\",\"id\":\"ChatInput-pa03\",\"name\":\"message\",\"output_types\":[\"Message\"]}",
+        "target": "ReActAgentComponent-pa08",
+        "targetHandle": "{\"fieldName\":\"input_value\",\"id\":\"ReActAgentComponent-pa08\",\"inputTypes\":[\"Message\",\"str\"],\"type\":\"Message\"}",
+        "type": "default",
+        "animated": false
+      },
+      {
+        "id": "reactflow__edge-OllamaModel-pa04-ReActAgentComponent-pa08",
+        "source": "OllamaModel-pa04",
+        "sourceHandle": "{\"dataType\":\"OllamaModel\",\"id\":\"OllamaModel-pa04\",\"name\":\"model\",\"output_types\":[\"LanguageModel\"]}",
+        "target": "ReActAgentComponent-pa08",
+        "targetHandle": "{\"fieldName\":\"llm\",\"id\":\"ReActAgentComponent-pa08\",\"inputTypes\":[\"LanguageModel\"],\"type\":\"LanguageModel\"}",
+        "type": "default",
+        "animated": false
+      },
+      {
+        "id": "reactflow__edge-DuckDuckGoSearch-pa05-ReActAgentComponent-pa08",
+        "source": "DuckDuckGoSearch-pa05",
+        "sourceHandle": "{\"dataType\":\"DuckDuckGoSearchRun\",\"id\":\"DuckDuckGoSearch-pa05\",\"name\":\"tool\",\"output_types\":[\"Tool\"]}",
+        "target": "ReActAgentComponent-pa08",
+        "targetHandle": "{\"fieldName\":\"tools\",\"id\":\"ReActAgentComponent-pa08\",\"inputTypes\":[\"Tool\"],\"type\":\"Tool\"}",
+        "type": "default",
+        "animated": false
+      },
+      {
+        "id": "reactflow__edge-PythonFunctionTool-pa06-ReActAgentComponent-pa08",
+        "source": "PythonFunctionTool-pa06",
+        "sourceHandle": "{\"dataType\":\"PythonFunctionTool\",\"id\":\"PythonFunctionTool-pa06\",\"name\":\"tool\",\"output_types\":[\"Tool\"]}",
+        "target": "ReActAgentComponent-pa08",
+        "targetHandle": "{\"fieldName\":\"tools\",\"id\":\"ReActAgentComponent-pa08\",\"inputTypes\":[\"Tool\"],\"type\":\"Tool\"}",
+        "type": "default",
+        "animated": false
+      },
+      {
+        "id": "reactflow__edge-PythonFunctionTool-pa07-ReActAgentComponent-pa08",
+        "source": "PythonFunctionTool-pa07",
+        "sourceHandle": "{\"dataType\":\"PythonFunctionTool\",\"id\":\"PythonFunctionTool-pa07\",\"name\":\"tool\",\"output_types\":[\"Tool\"]}",
+        "target": "ReActAgentComponent-pa08",
+        "targetHandle": "{\"fieldName\":\"tools\",\"id\":\"ReActAgentComponent-pa08\",\"inputTypes\":[\"Tool\"],\"type\":\"Tool\"}",
+        "type": "default",
+        "animated": false
+      },
+      {
+        "id": "reactflow__edge-ReActAgentComponent-pa08-ChatOutput-pa09",
+        "source": "ReActAgentComponent-pa08",
+        "sourceHandle": "{\"dataType\":\"ReActAgentComponent\",\"id\":\"ReActAgentComponent-pa08\",\"name\":\"response\",\"output_types\":[\"Message\"]}",
+        "target": "ChatOutput-pa09",
+        "targetHandle": "{\"fieldName\":\"input_value\",\"id\":\"ChatOutput-pa09\",\"inputTypes\":[\"Message\",\"str\"],\"type\":\"Message\"}",
+        "type": "default",
+        "animated": false
+      }
+    ],
+    "viewport": { "x": 0, "y": 0, "zoom": 0.7 }
+  },
+  "is_component": false
+}

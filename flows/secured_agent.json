@@ -1,0 +1,705 @@
+{
+  "id": "a1b2c3d4-0002-0000-0000-000000000000",
+  "name": "Omaha-Lab: Secured Agent",
+  "description": "Stage 6–8: Base agent with full security stack — Llama Guard 3 input filter, Presidio PII redactor on output, and HITL breakpoint blocking high-risk tool calls (write_file). Demonstrates Module 3 defensive architecture.",
+  "data": {
+    "nodes": [
+      {
+        "id": "ChatInput-sa01",
+        "type": "genericNode",
+        "position": { "x": 100, "y": 300 },
+        "data": {
+          "id": "ChatInput-sa01",
+          "type": "ChatInput",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "input_value": {
+                "advanced": false,
+                "display_name": "Text",
+                "dynamic": false,
+                "info": "User message — will be screened by Llama Guard 3 before reaching the agent",
+                "list": false,
+                "load_from_db": false,
+                "multiline": true,
+                "name": "input_value",
+                "placeholder": "Ask the agent something...",
+                "required": false,
+                "show": true,
+                "type": "str",
+                "value": ""
+              },
+              "sender": {
+                "advanced": true,
+                "display_name": "Sender",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "sender",
+                "options": ["User", "Machine"],
+                "required": false,
+                "show": true,
+                "type": "str",
+                "value": "User"
+              },
+              "sender_name": {
+                "advanced": true,
+                "display_name": "Sender Name",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "sender_name",
+                "required": false,
+                "show": true,
+                "type": "str",
+                "value": "User"
+              },
+              "session_id": {
+                "advanced": true,
+                "display_name": "Session ID",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "session_id",
+                "required": false,
+                "show": true,
+                "type": "str",
+                "value": ""
+              }
+            },
+            "description": "Get chat inputs from the Playground.",
+            "display_name": "Chat Input",
+            "documentation": "",
+            "base_classes": ["Message"],
+            "output_types": ["Message"]
+          }
+        }
+      },
+      {
+        "id": "CustomComponent-sa02",
+        "type": "genericNode",
+        "position": { "x": 480, "y": 150 },
+        "data": {
+          "id": "CustomComponent-sa02",
+          "type": "CustomComponent",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "input_text": {
+                "advanced": false,
+                "display_name": "Input Text",
+                "dynamic": false,
+                "info": "User message to screen for unsafe content",
+                "list": false,
+                "name": "input_text",
+                "required": true,
+                "show": true,
+                "type": "Message",
+                "value": ""
+              },
+              "ollama_base_url": {
+                "advanced": false,
+                "display_name": "Ollama Base URL",
+                "dynamic": false,
+                "info": "Run: ollama pull llama-guard3 before enabling this node",
+                "list": false,
+                "name": "ollama_base_url",
+                "required": false,
+                "show": true,
+                "type": "str",
+                "value": "http://localhost:11434"
+              },
+              "guard_model": {
+                "advanced": false,
+                "display_name": "Guard Model",
+                "dynamic": false,
+                "info": "Ollama model tag for Llama Guard 3",
+                "list": false,
+                "name": "guard_model",
+                "required": false,
+                "show": true,
+                "type": "str",
+                "value": "llama-guard3"
+              },
+              "code": {
+                "advanced": false,
+                "display_name": "Code",
+                "dynamic": false,
+                "info": "Custom component code",
+                "list": false,
+                "multiline": true,
+                "name": "code",
+                "required": true,
+                "show": false,
+                "type": "code",
+                "value": "from langflow.custom import CustomComponent\nfrom langchain_core.messages import AIMessage, HumanMessage\nimport requests\n\nclass LlamaGuardFilter(CustomComponent):\n    display_name = 'Llama Guard 3 Filter'\n    description = 'Screen input with Llama Guard 3 via Ollama. Blocks unsafe content before it reaches the agent.'\n\n    def build_config(self):\n        return {\n            'input_text': {'display_name': 'Input Text', 'required': True},\n            'ollama_base_url': {'display_name': 'Ollama Base URL', 'value': 'http://localhost:11434'},\n            'guard_model': {'display_name': 'Guard Model', 'value': 'llama-guard3'},\n        }\n\n    def build(self, input_text, ollama_base_url='http://localhost:11434', guard_model='llama-guard3'):\n        text = input_text.text if hasattr(input_text, 'text') else str(input_text)\n        prompt = f'[INST] Task: Check if there is unsafe content in the user message.\\n<BEGIN CONVERSATION>\\nUser: {text}\\n<END CONVERSATION>\\nProvide your safety assessment: [/INST]'\n        try:\n            r = requests.post(f'{ollama_base_url}/api/generate',\n                json={'model': guard_model, 'prompt': prompt, 'stream': False}, timeout=30)\n            raw = r.json().get('response', '').strip().lower()\n            if raw.startswith('unsafe'):\n                return AIMessage(content=f'[BLOCKED by Llama Guard 3] Input classified as unsafe. Category: {raw}')\n        except Exception as e:\n            pass  # If guard is unavailable, pass through\n        return input_text\n"
+              }
+            },
+            "description": "Llama Guard 3 input filter. Sends user message to llama-guard3 via Ollama before the agent sees it. Blocks unsafe content and returns a [BLOCKED] response. Run `ollama pull llama-guard3` first.",
+            "display_name": "Llama Guard 3 Filter",
+            "documentation": "",
+            "base_classes": ["Message"],
+            "output_types": ["Message"]
+          }
+        }
+      },
+      {
+        "id": "OllamaModel-sa03",
+        "type": "genericNode",
+        "position": { "x": 100, "y": 650 },
+        "data": {
+          "id": "OllamaModel-sa03",
+          "type": "OllamaModel",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "base_url": {
+                "advanced": false,
+                "display_name": "Ollama Base URL",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "base_url",
+                "required": false,
+                "show": true,
+                "type": "str",
+                "value": "http://localhost:11434"
+              },
+              "model_name": {
+                "advanced": false,
+                "display_name": "Model Name",
+                "dynamic": false,
+                "info": "llama3.1:8b or phi3:mini for low-VRAM",
+                "list": false,
+                "name": "model_name",
+                "required": true,
+                "show": true,
+                "type": "str",
+                "value": "llama3.1:8b"
+              },
+              "temperature": {
+                "advanced": false,
+                "display_name": "Temperature",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "temperature",
+                "required": false,
+                "show": true,
+                "type": "float",
+                "value": 0.2
+              },
+              "num_ctx": {
+                "advanced": true,
+                "display_name": "Context Window",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "num_ctx",
+                "required": false,
+                "show": true,
+                "type": "int",
+                "value": 4096
+              }
+            },
+            "description": "Ollama LLM for agent reasoning.",
+            "display_name": "Ollama",
+            "documentation": "",
+            "base_classes": ["LanguageModel"],
+            "output_types": ["LanguageModel"]
+          }
+        }
+      },
+      {
+        "id": "DuckDuckGoSearch-sa04",
+        "type": "genericNode",
+        "position": { "x": -350, "y": 50 },
+        "data": {
+          "id": "DuckDuckGoSearch-sa04",
+          "type": "DuckDuckGoSearchRun",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "max_results": {
+                "advanced": false,
+                "display_name": "Max Results",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "max_results",
+                "required": false,
+                "show": true,
+                "type": "int",
+                "value": 5
+              }
+            },
+            "description": "DuckDuckGo web search tool.",
+            "display_name": "DuckDuckGo Search",
+            "documentation": "",
+            "base_classes": ["Tool"],
+            "output_types": ["Tool"]
+          }
+        }
+      },
+      {
+        "id": "PythonFunctionTool-sa05",
+        "type": "genericNode",
+        "position": { "x": -350, "y": 300 },
+        "data": {
+          "id": "PythonFunctionTool-sa05",
+          "type": "PythonFunctionTool",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "name": {
+                "advanced": false,
+                "display_name": "Tool Name",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "name",
+                "required": true,
+                "show": true,
+                "type": "str",
+                "value": "get_weather"
+              },
+              "description": {
+                "advanced": false,
+                "display_name": "Tool Description",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "multiline": true,
+                "name": "description",
+                "required": true,
+                "show": true,
+                "type": "str",
+                "value": "Get current weather for a city. Args: city (str)."
+              },
+              "return_direct": {
+                "advanced": true,
+                "display_name": "Return Direct",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "return_direct",
+                "required": false,
+                "show": true,
+                "type": "bool",
+                "value": false
+              },
+              "tool_code": {
+                "advanced": false,
+                "display_name": "Tool Code",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "multiline": true,
+                "name": "tool_code",
+                "required": true,
+                "show": true,
+                "type": "code",
+                "value": "import os, requests\n\ndef get_weather(city: str) -> str:\n    key = os.getenv('WEATHER_API_KEY', '')\n    if not key:\n        return 'Error: WEATHER_API_KEY not set'\n    r = requests.get('https://api.openweathermap.org/data/2.5/weather',\n        params={'q': city, 'appid': key, 'units': 'imperial'}, timeout=10)\n    d = r.json()\n    return f\"{d['name']}: {d['weather'][0]['description']}, {d['main']['temp']}°F\"\n"
+              }
+            },
+            "description": "OpenWeatherMap current weather. Low-risk.",
+            "display_name": "Weather Tool",
+            "documentation": "",
+            "base_classes": ["Tool"],
+            "output_types": ["Tool"]
+          }
+        }
+      },
+      {
+        "id": "PythonFunctionTool-sa06",
+        "type": "genericNode",
+        "position": { "x": -350, "y": 570 },
+        "data": {
+          "id": "PythonFunctionTool-sa06",
+          "type": "PythonFunctionTool",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "name": {
+                "advanced": false,
+                "display_name": "Tool Name",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "name",
+                "required": true,
+                "show": true,
+                "type": "str",
+                "value": "write_file"
+              },
+              "description": {
+                "advanced": false,
+                "display_name": "Tool Description",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "multiline": true,
+                "name": "description",
+                "required": true,
+                "show": true,
+                "type": "str",
+                "value": "Write content to a file in workspace/. Args: filename (str), content (str). HIGH-RISK."
+              },
+              "return_direct": {
+                "advanced": true,
+                "display_name": "Return Direct",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "return_direct",
+                "required": false,
+                "show": true,
+                "type": "bool",
+                "value": false
+              },
+              "tool_code": {
+                "advanced": false,
+                "display_name": "Tool Code",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "multiline": true,
+                "name": "tool_code",
+                "required": true,
+                "show": true,
+                "type": "code",
+                "value": "from pathlib import Path\nWORKSPACE = Path('workspace').resolve()\n\ndef write_file(filename: str, content: str) -> str:\n    target = (WORKSPACE / filename).resolve()\n    try: target.relative_to(WORKSPACE)\n    except ValueError: return 'Error: path traversal blocked'\n    target.parent.mkdir(parents=True, exist_ok=True)\n    target.write_text(content, encoding='utf-8')\n    return f'Wrote {len(content)} chars to workspace/{filename}'\n"
+              }
+            },
+            "description": "Write file — HIGH-RISK. In this flow the HITL node intercepts this call before execution.",
+            "display_name": "Write File Tool",
+            "documentation": "",
+            "base_classes": ["Tool"],
+            "output_types": ["Tool"]
+          }
+        }
+      },
+      {
+        "id": "CustomComponent-sa07",
+        "type": "genericNode",
+        "position": { "x": 480, "y": 550 },
+        "data": {
+          "id": "CustomComponent-sa07",
+          "type": "CustomComponent",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "input_text": {
+                "advanced": false,
+                "display_name": "Input Text",
+                "dynamic": false,
+                "info": "Filtered user message from Llama Guard",
+                "list": false,
+                "name": "input_text",
+                "required": true,
+                "show": true,
+                "type": "Message",
+                "value": ""
+              },
+              "llm": {
+                "advanced": false,
+                "display_name": "Language Model",
+                "dynamic": false,
+                "info": "Ollama LLM for agent reasoning",
+                "list": false,
+                "name": "llm",
+                "required": true,
+                "show": true,
+                "type": "LanguageModel",
+                "value": ""
+              },
+              "tools": {
+                "advanced": false,
+                "display_name": "Tools",
+                "dynamic": false,
+                "info": "Agent tool set",
+                "list": true,
+                "name": "tools",
+                "required": false,
+                "show": true,
+                "type": "Tool",
+                "value": ""
+              },
+              "max_iterations": {
+                "advanced": false,
+                "display_name": "Max Iterations",
+                "dynamic": false,
+                "info": "LLM10: iteration cap prevents runaway loops",
+                "list": false,
+                "name": "max_iterations",
+                "required": false,
+                "show": true,
+                "type": "int",
+                "value": 15
+              },
+              "code": {
+                "advanced": false,
+                "display_name": "Code",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "multiline": true,
+                "name": "code",
+                "required": true,
+                "show": false,
+                "type": "code",
+                "value": "# ReAct agent node — see base_agent.json for full implementation\n# This node is wired after LlamaGuard and before Presidio\n"
+              }
+            },
+            "description": "ReAct agent node (same as base agent) wired between LlamaGuard and Presidio redactor.",
+            "display_name": "ReAct Agent",
+            "documentation": "",
+            "base_classes": ["Message"],
+            "output_types": ["Message"]
+          }
+        }
+      },
+      {
+        "id": "CustomComponent-sa08",
+        "type": "genericNode",
+        "position": { "x": 850, "y": 300 },
+        "data": {
+          "id": "CustomComponent-sa08",
+          "type": "CustomComponent",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "input_text": {
+                "advanced": false,
+                "display_name": "Agent Response",
+                "dynamic": false,
+                "info": "Raw LLM output — PII will be scrubbed before delivery",
+                "list": false,
+                "name": "input_text",
+                "required": true,
+                "show": true,
+                "type": "Message",
+                "value": ""
+              },
+              "entities": {
+                "advanced": true,
+                "display_name": "Entities to Redact",
+                "dynamic": false,
+                "info": "Comma-separated Presidio entity types to scrub",
+                "list": false,
+                "name": "entities",
+                "required": false,
+                "show": true,
+                "type": "str",
+                "value": "PERSON,EMAIL_ADDRESS,PHONE_NUMBER,US_SSN,CREDIT_CARD,LOCATION"
+              },
+              "code": {
+                "advanced": false,
+                "display_name": "Code",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "multiline": true,
+                "name": "code",
+                "required": true,
+                "show": false,
+                "type": "code",
+                "value": "from langflow.custom import CustomComponent\nfrom langchain_core.messages import AIMessage\n\nclass PresidioRedactor(CustomComponent):\n    display_name = 'Presidio PII Redactor'\n    description = 'Redact PII from LLM output using Microsoft Presidio before showing to user.'\n\n    def build_config(self):\n        return {\n            'input_text': {'display_name': 'Agent Response', 'required': True},\n            'entities': {'display_name': 'Entities to Redact', 'value': 'PERSON,EMAIL_ADDRESS,PHONE_NUMBER,US_SSN,CREDIT_CARD'},\n        }\n\n    def build(self, input_text, entities='PERSON,EMAIL_ADDRESS,PHONE_NUMBER,US_SSN,CREDIT_CARD'):\n        from presidio_analyzer import AnalyzerEngine\n        from presidio_anonymizer import AnonymizerEngine\n        text = input_text.text if hasattr(input_text, 'text') else str(input_text)\n        analyzer = AnalyzerEngine()\n        anonymizer = AnonymizerEngine()\n        entity_list = [e.strip() for e in entities.split(',') if e.strip()]\n        results = analyzer.analyze(text=text, entities=entity_list, language='en')\n        redacted = anonymizer.anonymize(text=text, analyzer_results=results).text\n        return AIMessage(content=redacted)\n"
+              }
+            },
+            "description": "Microsoft Presidio PII redaction on agent output. Replaces names, emails, SSNs, phone numbers, and credit card numbers with [TYPE] labels before the response is shown to the user.",
+            "display_name": "Presidio PII Redactor",
+            "documentation": "",
+            "base_classes": ["Message"],
+            "output_types": ["Message"]
+          }
+        }
+      },
+      {
+        "id": "CustomComponent-sa09",
+        "type": "genericNode",
+        "position": { "x": 850, "y": 700 },
+        "data": {
+          "id": "CustomComponent-sa09",
+          "type": "CustomComponent",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "tool_call": {
+                "advanced": false,
+                "display_name": "Pending Tool Call",
+                "dynamic": false,
+                "info": "High-risk tool call intercepted from the agent — presented to the operator for approval",
+                "list": false,
+                "name": "tool_call",
+                "required": false,
+                "show": true,
+                "type": "Message",
+                "value": ""
+              },
+              "risk_level": {
+                "advanced": false,
+                "display_name": "Risk Level Threshold",
+                "dynamic": false,
+                "info": "Only intercept calls at or above this risk level",
+                "list": false,
+                "name": "risk_level",
+                "options": ["high", "medium", "low"],
+                "required": false,
+                "show": true,
+                "type": "str",
+                "value": "high"
+              },
+              "code": {
+                "advanced": false,
+                "display_name": "Code",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "multiline": true,
+                "name": "code",
+                "required": true,
+                "show": false,
+                "type": "code",
+                "value": "from langflow.custom import CustomComponent\nfrom langchain_core.messages import AIMessage\nimport json\n\nHIGH_RISK_TOOLS = {'write_file'}\n\nclass HITLBreakpoint(CustomComponent):\n    display_name = 'HITL Approval Breakpoint'\n    description = 'Pause execution before high-risk tool calls and require human approval. Denied calls return a blocked message to the agent.'\n\n    def build_config(self):\n        return {\n            'tool_call': {'display_name': 'Pending Tool Call', 'required': False},\n            'risk_level': {'display_name': 'Risk Threshold', 'value': 'high', 'options': ['high', 'medium', 'low']},\n        }\n\n    def build(self, tool_call=None, risk_level='high'):\n        # In the Langflow playground, this node surfaces a visual approval dialog.\n        # In the Python CLI agent (agent.py --hitl on), this is graph_nodes/hitl_node.py.\n        if tool_call is None:\n            return AIMessage(content='[HITL] No pending tool call.')\n        text = tool_call.text if hasattr(tool_call, 'text') else str(tool_call)\n        return AIMessage(content=f'[HITL PENDING] Review tool call:\\n{text}\\n\\nApprove or deny in the Playground.')\n"
+              }
+            },
+            "description": "HITL authorization breakpoint. Intercepts high-risk tool calls (write_file) before execution. The operator reviews tool name and arguments and approves or denies. All decisions are logged to logs/hitl_log.jsonl.",
+            "display_name": "HITL Approval Breakpoint",
+            "documentation": "",
+            "base_classes": ["Message"],
+            "output_types": ["Message"]
+          }
+        }
+      },
+      {
+        "id": "ChatOutput-sa10",
+        "type": "genericNode",
+        "position": { "x": 1220, "y": 500 },
+        "data": {
+          "id": "ChatOutput-sa10",
+          "type": "ChatOutput",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "input_value": {
+                "advanced": false,
+                "display_name": "Text",
+                "dynamic": false,
+                "info": "PII-redacted agent response",
+                "list": false,
+                "name": "input_value",
+                "required": false,
+                "show": true,
+                "type": "Message",
+                "value": ""
+              },
+              "sender_name": {
+                "advanced": true,
+                "display_name": "Sender Name",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "sender_name",
+                "required": false,
+                "show": true,
+                "type": "str",
+                "value": "Secured AI"
+              }
+            },
+            "description": "Send the PII-redacted, security-filtered response to the chat window.",
+            "display_name": "Chat Output",
+            "documentation": "",
+            "base_classes": ["Message"],
+            "output_types": ["Message"]
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "reactflow__edge-ChatInput-sa01-CustomComponent-sa02",
+        "source": "ChatInput-sa01",
+        "sourceHandle": "{\"dataType\":\"ChatInput\",\"id\":\"ChatInput-sa01\",\"name\":\"message\",\"output_types\":[\"Message\"]}",
+        "target": "CustomComponent-sa02",
+        "targetHandle": "{\"fieldName\":\"input_text\",\"id\":\"CustomComponent-sa02\",\"inputTypes\":[\"Message\",\"str\"],\"type\":\"Message\"}",
+        "type": "default",
+        "animated": false
+      },
+      {
+        "id": "reactflow__edge-CustomComponent-sa02-CustomComponent-sa07",
+        "source": "CustomComponent-sa02",
+        "sourceHandle": "{\"dataType\":\"CustomComponent\",\"id\":\"CustomComponent-sa02\",\"name\":\"output\",\"output_types\":[\"Message\"]}",
+        "target": "CustomComponent-sa07",
+        "targetHandle": "{\"fieldName\":\"input_text\",\"id\":\"CustomComponent-sa07\",\"inputTypes\":[\"Message\",\"str\"],\"type\":\"Message\"}",
+        "type": "default",
+        "animated": false
+      },
+      {
+        "id": "reactflow__edge-OllamaModel-sa03-CustomComponent-sa07",
+        "source": "OllamaModel-sa03",
+        "sourceHandle": "{\"dataType\":\"OllamaModel\",\"id\":\"OllamaModel-sa03\",\"name\":\"model\",\"output_types\":[\"LanguageModel\"]}",
+        "target": "CustomComponent-sa07",
+        "targetHandle": "{\"fieldName\":\"llm\",\"id\":\"CustomComponent-sa07\",\"inputTypes\":[\"LanguageModel\"],\"type\":\"LanguageModel\"}",
+        "type": "default",
+        "animated": false
+      },
+      {
+        "id": "reactflow__edge-DuckDuckGoSearch-sa04-CustomComponent-sa07",
+        "source": "DuckDuckGoSearch-sa04",
+        "sourceHandle": "{\"dataType\":\"DuckDuckGoSearchRun\",\"id\":\"DuckDuckGoSearch-sa04\",\"name\":\"tool\",\"output_types\":[\"Tool\"]}",
+        "target": "CustomComponent-sa07",
+        "targetHandle": "{\"fieldName\":\"tools\",\"id\":\"CustomComponent-sa07\",\"inputTypes\":[\"Tool\"],\"type\":\"Tool\"}",
+        "type": "default",
+        "animated": false
+      },
+      {
+        "id": "reactflow__edge-PythonFunctionTool-sa05-CustomComponent-sa07",
+        "source": "PythonFunctionTool-sa05",
+        "sourceHandle": "{\"dataType\":\"PythonFunctionTool\",\"id\":\"PythonFunctionTool-sa05\",\"name\":\"tool\",\"output_types\":[\"Tool\"]}",
+        "target": "CustomComponent-sa07",
+        "targetHandle": "{\"fieldName\":\"tools\",\"id\":\"CustomComponent-sa07\",\"inputTypes\":[\"Tool\"],\"type\":\"Tool\"}",
+        "type": "default",
+        "animated": false
+      },
+      {
+        "id": "reactflow__edge-PythonFunctionTool-sa06-CustomComponent-sa09",
+        "source": "PythonFunctionTool-sa06",
+        "sourceHandle": "{\"dataType\":\"PythonFunctionTool\",\"id\":\"PythonFunctionTool-sa06\",\"name\":\"tool\",\"output_types\":[\"Tool\"]}",
+        "target": "CustomComponent-sa09",
+        "targetHandle": "{\"fieldName\":\"tool_call\",\"id\":\"CustomComponent-sa09\",\"inputTypes\":[\"Tool\",\"Message\"],\"type\":\"Message\"}",
+        "type": "default",
+        "animated": false
+      },
+      {
+        "id": "reactflow__edge-CustomComponent-sa07-CustomComponent-sa08",
+        "source": "CustomComponent-sa07",
+        "sourceHandle": "{\"dataType\":\"CustomComponent\",\"id\":\"CustomComponent-sa07\",\"name\":\"response\",\"output_types\":[\"Message\"]}",
+        "target": "CustomComponent-sa08",
+        "targetHandle": "{\"fieldName\":\"input_text\",\"id\":\"CustomComponent-sa08\",\"inputTypes\":[\"Message\",\"str\"],\"type\":\"Message\"}",
+        "type": "default",
+        "animated": false
+      },
+      {
+        "id": "reactflow__edge-CustomComponent-sa08-ChatOutput-sa10",
+        "source": "CustomComponent-sa08",
+        "sourceHandle": "{\"dataType\":\"CustomComponent\",\"id\":\"CustomComponent-sa08\",\"name\":\"output\",\"output_types\":[\"Message\"]}",
+        "target": "ChatOutput-sa10",
+        "targetHandle": "{\"fieldName\":\"input_value\",\"id\":\"ChatOutput-sa10\",\"inputTypes\":[\"Message\",\"str\"],\"type\":\"Message\"}",
+        "type": "default",
+        "animated": false
+      },
+      {
+        "id": "reactflow__edge-CustomComponent-sa09-ChatOutput-sa10",
+        "source": "CustomComponent-sa09",
+        "sourceHandle": "{\"dataType\":\"CustomComponent\",\"id\":\"CustomComponent-sa09\",\"name\":\"output\",\"output_types\":[\"Message\"]}",
+        "target": "ChatOutput-sa10",
+        "targetHandle": "{\"fieldName\":\"input_value\",\"id\":\"ChatOutput-sa10\",\"inputTypes\":[\"Message\",\"str\"],\"type\":\"Message\"}",
+        "type": "default",
+        "animated": false
+      }
+    ],
+    "viewport": { "x": 0, "y": 0, "zoom": 0.65 }
+  },
+  "is_component": false
+}

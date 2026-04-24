@@ -1,0 +1,753 @@
+{
+  "id": "a1b2c3d4-0001-0000-0000-000000000000",
+  "name": "Omaha-Lab: Base Agent",
+  "description": "Stage 2–3: Ollama LLM (llama3.1:8b) + ReAct loop with live tools (web search, weather, HTTP GET, file read/write). No security guardrails — use as a baseline before layering on defences.",
+  "data": {
+    "nodes": [
+      {
+        "id": "ChatInput-ba01",
+        "type": "genericNode",
+        "position": { "x": 100, "y": 300 },
+        "data": {
+          "id": "ChatInput-ba01",
+          "type": "ChatInput",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "input_value": {
+                "advanced": false,
+                "display_name": "Text",
+                "dynamic": false,
+                "fileTypes": [],
+                "file_path": null,
+                "info": "User message sent to the agent",
+                "list": false,
+                "load_from_db": false,
+                "multiline": true,
+                "name": "input_value",
+                "placeholder": "What’s the weather in Omaha?",
+                "required": false,
+                "show": true,
+                "type": "str",
+                "value": ""
+              },
+              "sender": {
+                "advanced": true,
+                "display_name": "Sender",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "sender",
+                "options": ["User", "Machine"],
+                "required": false,
+                "show": true,
+                "type": "str",
+                "value": "User"
+              },
+              "sender_name": {
+                "advanced": true,
+                "display_name": "Sender Name",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "sender_name",
+                "required": false,
+                "show": true,
+                "type": "str",
+                "value": "User"
+              },
+              "session_id": {
+                "advanced": true,
+                "display_name": "Session ID",
+                "dynamic": false,
+                "info": "Leave blank for auto-generated session ID",
+                "list": false,
+                "name": "session_id",
+                "required": false,
+                "show": true,
+                "type": "str",
+                "value": ""
+              }
+            },
+            "description": "Get chat inputs from the Playground.",
+            "display_name": "Chat Input",
+            "documentation": "",
+            "base_classes": ["Message"],
+            "output_types": ["Message"]
+          }
+        }
+      },
+      {
+        "id": "OllamaModel-ba02",
+        "type": "genericNode",
+        "position": { "x": 100, "y": 650 },
+        "data": {
+          "id": "OllamaModel-ba02",
+          "type": "OllamaModel",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "base_url": {
+                "advanced": false,
+                "display_name": "Ollama Base URL",
+                "dynamic": false,
+                "info": "Base URL of the local Ollama server",
+                "list": false,
+                "name": "base_url",
+                "required": false,
+                "show": true,
+                "type": "str",
+                "value": "http://localhost:11434"
+              },
+              "model_name": {
+                "advanced": false,
+                "display_name": "Model Name",
+                "dynamic": false,
+                "info": "Ollama model tag (llama3.1:8b or phi3:mini for low-VRAM)",
+                "list": false,
+                "name": "model_name",
+                "required": true,
+                "show": true,
+                "type": "str",
+                "value": "llama3.1:8b"
+              },
+              "temperature": {
+                "advanced": false,
+                "display_name": "Temperature",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "temperature",
+                "required": false,
+                "show": true,
+                "type": "float",
+                "value": 0.2
+              },
+              "top_k": {
+                "advanced": true,
+                "display_name": "Top K",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "top_k",
+                "required": false,
+                "show": true,
+                "type": "int",
+                "value": 40
+              },
+              "top_p": {
+                "advanced": true,
+                "display_name": "Top P",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "top_p",
+                "required": false,
+                "show": true,
+                "type": "float",
+                "value": 0.9
+              },
+              "num_ctx": {
+                "advanced": true,
+                "display_name": "Context Window",
+                "dynamic": false,
+                "info": "Token context window size",
+                "list": false,
+                "name": "num_ctx",
+                "required": false,
+                "show": true,
+                "type": "int",
+                "value": 4096
+              },
+              "verbose": {
+                "advanced": true,
+                "display_name": "Verbose",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "verbose",
+                "required": false,
+                "show": true,
+                "type": "bool",
+                "value": false
+              }
+            },
+            "description": "Run Ollama LLM locally. Requires Ollama to be running on the host machine.",
+            "display_name": "Ollama",
+            "documentation": "",
+            "base_classes": ["LanguageModel"],
+            "output_types": ["LanguageModel"]
+          }
+        }
+      },
+      {
+        "id": "DuckDuckGoSearch-ba03",
+        "type": "genericNode",
+        "position": { "x": -350, "y": 50 },
+        "data": {
+          "id": "DuckDuckGoSearch-ba03",
+          "type": "DuckDuckGoSearchRun",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "max_results": {
+                "advanced": false,
+                "display_name": "Max Results",
+                "dynamic": false,
+                "info": "Maximum number of search results to return",
+                "list": false,
+                "name": "max_results",
+                "required": false,
+                "show": true,
+                "type": "int",
+                "value": 5
+              },
+              "backend": {
+                "advanced": true,
+                "display_name": "Backend",
+                "dynamic": false,
+                "info": "DuckDuckGo backend: auto | html | lite",
+                "list": false,
+                "name": "backend",
+                "options": ["auto", "html", "lite"],
+                "required": false,
+                "show": true,
+                "type": "str",
+                "value": "auto"
+              }
+            },
+            "description": "DuckDuckGo web search. No API key required.",
+            "display_name": "DuckDuckGo Search",
+            "documentation": "",
+            "base_classes": ["Tool"],
+            "output_types": ["Tool"]
+          }
+        }
+      },
+      {
+        "id": "PythonFunctionTool-ba04",
+        "type": "genericNode",
+        "position": { "x": -350, "y": 300 },
+        "data": {
+          "id": "PythonFunctionTool-ba04",
+          "type": "PythonFunctionTool",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "name": {
+                "advanced": false,
+                "display_name": "Tool Name",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "name",
+                "required": true,
+                "show": true,
+                "type": "str",
+                "value": "get_weather"
+              },
+              "description": {
+                "advanced": false,
+                "display_name": "Tool Description",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "multiline": true,
+                "name": "description",
+                "required": true,
+                "show": true,
+                "type": "str",
+                "value": "Get the current weather for a city. Args: city (str) — city name."
+              },
+              "return_direct": {
+                "advanced": true,
+                "display_name": "Return Direct",
+                "dynamic": false,
+                "info": "Return tool output directly to user without further LLM reasoning",
+                "list": false,
+                "name": "return_direct",
+                "required": false,
+                "show": true,
+                "type": "bool",
+                "value": false
+              },
+              "tool_code": {
+                "advanced": false,
+                "display_name": "Tool Code",
+                "dynamic": false,
+                "info": "Python function implementing the tool. Must accept (city: str) and return str.",
+                "list": false,
+                "multiline": true,
+                "name": "tool_code",
+                "required": true,
+                "show": true,
+                "type": "code",
+                "value": "import os, requests\n\ndef get_weather(city: str) -> str:\n    key = os.getenv('WEATHER_API_KEY', '')\n    if not key:\n        return 'Error: WEATHER_API_KEY not set in .env'\n    url = 'https://api.openweathermap.org/data/2.5/weather'\n    r = requests.get(url, params={'q': city, 'appid': key, 'units': 'imperial'}, timeout=10)\n    if r.status_code != 200:\n        return f'Error: {r.status_code} {r.text}'\n    d = r.json()\n    return (f\"{d['name']}: {d['weather'][0]['description']}, \"\n            f\"{d['main']['temp']}°F, humidity {d['main']['humidity']}%\")\n"
+              }
+            },
+            "description": "OpenWeatherMap current weather by city name. Requires WEATHER_API_KEY in .env.",
+            "display_name": "Weather Tool",
+            "documentation": "",
+            "base_classes": ["Tool"],
+            "output_types": ["Tool"]
+          }
+        }
+      },
+      {
+        "id": "PythonFunctionTool-ba05",
+        "type": "genericNode",
+        "position": { "x": -350, "y": 570 },
+        "data": {
+          "id": "PythonFunctionTool-ba05",
+          "type": "PythonFunctionTool",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "name": {
+                "advanced": false,
+                "display_name": "Tool Name",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "name",
+                "required": true,
+                "show": true,
+                "type": "str",
+                "value": "http_get"
+              },
+              "description": {
+                "advanced": false,
+                "display_name": "Tool Description",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "multiline": true,
+                "name": "description",
+                "required": true,
+                "show": true,
+                "type": "str",
+                "value": "HTTP GET request to an allowed URL. Args: url (str)."
+              },
+              "return_direct": {
+                "advanced": true,
+                "display_name": "Return Direct",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "return_direct",
+                "required": false,
+                "show": true,
+                "type": "bool",
+                "value": false
+              },
+              "tool_code": {
+                "advanced": false,
+                "display_name": "Tool Code",
+                "dynamic": false,
+                "info": "Python function. Validates URL against a domain allow-list before fetching.",
+                "list": false,
+                "multiline": true,
+                "name": "tool_code",
+                "required": true,
+                "show": true,
+                "type": "code",
+                "value": "import requests\nfrom urllib.parse import urlparse\n\n_ALLOWED = {'api.openweathermap.org', 'duckduckgo.com', 'httpbin.org'}\n\ndef http_get(url: str) -> str:\n    domain = urlparse(url).netloc.lower().lstrip('www.')\n    if domain not in _ALLOWED:\n        return f'Blocked: {domain} is not in the allow-list.'\n    r = requests.get(url, timeout=10)\n    return r.text[:2000]\n"
+              }
+            },
+            "description": "HTTP GET tool with domain allow-list validation.",
+            "display_name": "HTTP GET Tool",
+            "documentation": "",
+            "base_classes": ["Tool"],
+            "output_types": ["Tool"]
+          }
+        }
+      },
+      {
+        "id": "PythonFunctionTool-ba06",
+        "type": "genericNode",
+        "position": { "x": -350, "y": 840 },
+        "data": {
+          "id": "PythonFunctionTool-ba06",
+          "type": "PythonFunctionTool",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "name": {
+                "advanced": false,
+                "display_name": "Tool Name",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "name",
+                "required": true,
+                "show": true,
+                "type": "str",
+                "value": "read_file"
+              },
+              "description": {
+                "advanced": false,
+                "display_name": "Tool Description",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "multiline": true,
+                "name": "description",
+                "required": true,
+                "show": true,
+                "type": "str",
+                "value": "Read a file from the workspace/ sandbox. Args: filename (str) — relative to workspace/."
+              },
+              "return_direct": {
+                "advanced": true,
+                "display_name": "Return Direct",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "return_direct",
+                "required": false,
+                "show": true,
+                "type": "bool",
+                "value": false
+              },
+              "tool_code": {
+                "advanced": false,
+                "display_name": "Tool Code",
+                "dynamic": false,
+                "info": "Reads files sandboxed to ./workspace/ — path traversal is blocked.",
+                "list": false,
+                "multiline": true,
+                "name": "tool_code",
+                "required": true,
+                "show": true,
+                "type": "code",
+                "value": "from pathlib import Path\n\nWORKSPACE = Path('workspace').resolve()\nWORKSPACE.mkdir(parents=True, exist_ok=True)\n\ndef read_file(filename: str) -> str:\n    target = (WORKSPACE / filename).resolve()\n    try:\n        target.relative_to(WORKSPACE)\n    except ValueError:\n        return f\"Error: '{filename}' escapes the workspace sandbox.\"\n    if not target.exists():\n        return f'File not found: workspace/{filename}'\n    return target.read_text(encoding='utf-8')\n"
+              }
+            },
+            "description": "Read a file from the workspace sandbox. Low-risk (read-only).",
+            "display_name": "Read File Tool",
+            "documentation": "",
+            "base_classes": ["Tool"],
+            "output_types": ["Tool"]
+          }
+        }
+      },
+      {
+        "id": "PythonFunctionTool-ba07",
+        "type": "genericNode",
+        "position": { "x": -350, "y": 1110 },
+        "data": {
+          "id": "PythonFunctionTool-ba07",
+          "type": "PythonFunctionTool",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "name": {
+                "advanced": false,
+                "display_name": "Tool Name",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "name",
+                "required": true,
+                "show": true,
+                "type": "str",
+                "value": "write_file"
+              },
+              "description": {
+                "advanced": false,
+                "display_name": "Tool Description",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "multiline": true,
+                "name": "description",
+                "required": true,
+                "show": true,
+                "type": "str",
+                "value": "Write content to a file in the workspace/ sandbox. Args: filename (str), content (str). HIGH-RISK — requires HITL approval when guardrails are enabled."
+              },
+              "return_direct": {
+                "advanced": true,
+                "display_name": "Return Direct",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "return_direct",
+                "required": false,
+                "show": true,
+                "type": "bool",
+                "value": false
+              },
+              "tool_code": {
+                "advanced": false,
+                "display_name": "Tool Code",
+                "dynamic": false,
+                "info": "Writes files sandboxed to ./workspace/ — path traversal is blocked.",
+                "list": false,
+                "multiline": true,
+                "name": "tool_code",
+                "required": true,
+                "show": true,
+                "type": "code",
+                "value": "from pathlib import Path\n\nWORKSPACE = Path('workspace').resolve()\nWORKSPACE.mkdir(parents=True, exist_ok=True)\n\ndef write_file(filename: str, content: str) -> str:\n    target = (WORKSPACE / filename).resolve()\n    try:\n        target.relative_to(WORKSPACE)\n    except ValueError:\n        return f\"Error: '{filename}' escapes the workspace sandbox.\"\n    target.parent.mkdir(parents=True, exist_ok=True)\n    target.write_text(content, encoding='utf-8')\n    return f'Wrote {len(content)} characters to workspace/{filename}'\n"
+              }
+            },
+            "description": "Write a file inside the workspace sandbox. HIGH-RISK — blocked by HITL in the secured agent.",
+            "display_name": "Write File Tool",
+            "documentation": "",
+            "base_classes": ["Tool"],
+            "output_types": ["Tool"]
+          }
+        }
+      },
+      {
+        "id": "ReActAgentComponent-ba08",
+        "type": "genericNode",
+        "position": { "x": 620, "y": 500 },
+        "data": {
+          "id": "ReActAgentComponent-ba08",
+          "type": "ReActAgentComponent",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "input_value": {
+                "advanced": false,
+                "display_name": "Input",
+                "dynamic": false,
+                "info": "User message from Chat Input",
+                "list": false,
+                "name": "input_value",
+                "required": true,
+                "show": true,
+                "type": "Message",
+                "value": ""
+              },
+              "llm": {
+                "advanced": false,
+                "display_name": "Language Model",
+                "dynamic": false,
+                "info": "Ollama LLM used for reasoning",
+                "list": false,
+                "name": "llm",
+                "required": true,
+                "show": true,
+                "type": "LanguageModel",
+                "value": ""
+              },
+              "tools": {
+                "advanced": false,
+                "display_name": "Tools",
+                "dynamic": false,
+                "info": "Tools the agent can call during the ReAct loop",
+                "list": true,
+                "name": "tools",
+                "required": false,
+                "show": true,
+                "type": "Tool",
+                "value": ""
+              },
+              "system_prompt": {
+                "advanced": false,
+                "display_name": "System Prompt",
+                "dynamic": false,
+                "info": "Optional agent persona / instruction prefix",
+                "list": false,
+                "multiline": true,
+                "name": "system_prompt",
+                "required": false,
+                "show": true,
+                "type": "str",
+                "value": "You are a helpful assistant with access to live tools. Only call a tool when the request genuinely requires external data. Respond directly for general knowledge questions."
+              },
+              "max_iterations": {
+                "advanced": false,
+                "display_name": "Max Iterations",
+                "dynamic": false,
+                "info": "Maximum ReAct loop iterations before stopping (LLM10 guard)",
+                "list": false,
+                "name": "max_iterations",
+                "required": false,
+                "show": true,
+                "type": "int",
+                "value": 15
+              },
+              "verbose": {
+                "advanced": true,
+                "display_name": "Verbose",
+                "dynamic": false,
+                "info": "Print ReAct trace to console",
+                "list": false,
+                "name": "verbose",
+                "required": false,
+                "show": true,
+                "type": "bool",
+                "value": true
+              },
+              "handle_parsing_errors": {
+                "advanced": true,
+                "display_name": "Handle Parsing Errors",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "handle_parsing_errors",
+                "required": false,
+                "show": true,
+                "type": "bool",
+                "value": true
+              }
+            },
+            "description": "LangChain ReAct agent driven by an Ollama LLM. Reason → Act → Observe loop.",
+            "display_name": "ReAct Agent",
+            "documentation": "",
+            "base_classes": ["Message"],
+            "output_types": ["Message"]
+          }
+        }
+      },
+      {
+        "id": "ChatOutput-ba09",
+        "type": "genericNode",
+        "position": { "x": 1140, "y": 500 },
+        "data": {
+          "id": "ChatOutput-ba09",
+          "type": "ChatOutput",
+          "node": {
+            "template": {
+              "_type": "Component",
+              "input_value": {
+                "advanced": false,
+                "display_name": "Text",
+                "dynamic": false,
+                "info": "Agent response message",
+                "list": false,
+                "name": "input_value",
+                "required": false,
+                "show": true,
+                "type": "Message",
+                "value": ""
+              },
+              "sender": {
+                "advanced": true,
+                "display_name": "Sender",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "sender",
+                "options": ["User", "Machine"],
+                "required": false,
+                "show": true,
+                "type": "str",
+                "value": "Machine"
+              },
+              "sender_name": {
+                "advanced": true,
+                "display_name": "Sender Name",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "sender_name",
+                "required": false,
+                "show": true,
+                "type": "str",
+                "value": "AI"
+              },
+              "session_id": {
+                "advanced": true,
+                "display_name": "Session ID",
+                "dynamic": false,
+                "info": "",
+                "list": false,
+                "name": "session_id",
+                "required": false,
+                "show": true,
+                "type": "str",
+                "value": ""
+              }
+            },
+            "description": "Send agent response to the Playground chat window.",
+            "display_name": "Chat Output",
+            "documentation": "",
+            "base_classes": ["Message"],
+            "output_types": ["Message"]
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "reactflow__edge-ChatInput-ba01-ReActAgentComponent-ba08",
+        "source": "ChatInput-ba01",
+        "sourceHandle": "{\"dataType\":\"ChatInput\",\"id\":\"ChatInput-ba01\",\"name\":\"message\",\"output_types\":[\"Message\"]}",
+        "target": "ReActAgentComponent-ba08",
+        "targetHandle": "{\"fieldName\":\"input_value\",\"id\":\"ReActAgentComponent-ba08\",\"inputTypes\":[\"Message\",\"str\"],\"type\":\"Message\"}",
+        "type": "default",
+        "animated": false
+      },
+      {
+        "id": "reactflow__edge-OllamaModel-ba02-ReActAgentComponent-ba08",
+        "source": "OllamaModel-ba02",
+        "sourceHandle": "{\"dataType\":\"OllamaModel\",\"id\":\"OllamaModel-ba02\",\"name\":\"model\",\"output_types\":[\"LanguageModel\"]}",
+        "target": "ReActAgentComponent-ba08",
+        "targetHandle": "{\"fieldName\":\"llm\",\"id\":\"ReActAgentComponent-ba08\",\"inputTypes\":[\"LanguageModel\"],\"type\":\"LanguageModel\"}",
+        "type": "default",
+        "animated": false
+      },
+      {
+        "id": "reactflow__edge-DuckDuckGoSearch-ba03-ReActAgentComponent-ba08",
+        "source": "DuckDuckGoSearch-ba03",
+        "sourceHandle": "{\"dataType\":\"DuckDuckGoSearchRun\",\"id\":\"DuckDuckGoSearch-ba03\",\"name\":\"tool\",\"output_types\":[\"Tool\"]}",
+        "target": "ReActAgentComponent-ba08",
+        "targetHandle": "{\"fieldName\":\"tools\",\"id\":\"ReActAgentComponent-ba08\",\"inputTypes\":[\"Tool\"],\"type\":\"Tool\"}",
+        "type": "default",
+        "animated": false
+      },
+      {
+        "id": "reactflow__edge-PythonFunctionTool-ba04-ReActAgentComponent-ba08",
+        "source": "PythonFunctionTool-ba04",
+        "sourceHandle": "{\"dataType\":\"PythonFunctionTool\",\"id\":\"PythonFunctionTool-ba04\",\"name\":\"tool\",\"output_types\":[\"Tool\"]}",
+        "target": "ReActAgentComponent-ba08",
+        "targetHandle": "{\"fieldName\":\"tools\",\"id\":\"ReActAgentComponent-ba08\",\"inputTypes\":[\"Tool\"],\"type\":\"Tool\"}",
+        "type": "default",
+        "animated": false
+      },
+      {
+        "id": "reactflow__edge-PythonFunctionTool-ba05-ReActAgentComponent-ba08",
+        "source": "PythonFunctionTool-ba05",
+        "sourceHandle": "{\"dataType\":\"PythonFunctionTool\",\"id\":\"PythonFunctionTool-ba05\",\"name\":\"tool\",\"output_types\":[\"Tool\"]}",
+        "target": "ReActAgentComponent-ba08",
+        "targetHandle": "{\"fieldName\":\"tools\",\"id\":\"ReActAgentComponent-ba08\",\"inputTypes\":[\"Tool\"],\"type\":\"Tool\"}",
+        "type": "default",
+        "animated": false
+      },
+      {
+        "id": "reactflow__edge-PythonFunctionTool-ba06-ReActAgentComponent-ba08",
+        "source": "PythonFunctionTool-ba06",
+        "sourceHandle": "{\"dataType\":\"PythonFunctionTool\",\"id\":\"PythonFunctionTool-ba06\",\"name\":\"tool\",\"output_types\":[\"Tool\"]}",
+        "target": "ReActAgentComponent-ba08",
+        "targetHandle": "{\"fieldName\":\"tools\",\"id\":\"ReActAgentComponent-ba08\",\"inputTypes\":[\"Tool\"],\"type\":\"Tool\"}",
+        "type": "default",
+        "animated": false
+      },
+      {
+        "id": "reactflow__edge-PythonFunctionTool-ba07-ReActAgentComponent-ba08",
+        "source": "PythonFunctionTool-ba07",
+        "sourceHandle": "{\"dataType\":\"PythonFunctionTool\",\"id\":\"PythonFunctionTool-ba07\",\"name\":\"tool\",\"output_types\":[\"Tool\"]}",
+        "target": "ReActAgentComponent-ba08",
+        "targetHandle": "{\"fieldName\":\"tools\",\"id\":\"ReActAgentComponent-ba08\",\"inputTypes\":[\"Tool\"],\"type\":\"Tool\"}",
+        "type": "default",
+        "animated": false
+      },
+      {
+        "id": "reactflow__edge-ReActAgentComponent-ba08-ChatOutput-ba09",
+        "source": "ReActAgentComponent-ba08",
+        "sourceHandle": "{\"dataType\":\"ReActAgentComponent\",\"id\":\"ReActAgentComponent-ba08\",\"name\":\"response\",\"output_types\":[\"Message\"]}",
+        "target": "ChatOutput-ba09",
+        "targetHandle": "{\"fieldName\":\"input_value\",\"id\":\"ChatOutput-ba09\",\"inputTypes\":[\"Message\",\"str\"],\"type\":\"Message\"}",
+        "type": "default",
+        "animated": false
+      }
+    ],
+    "viewport": { "x": 0, "y": 0, "zoom": 0.75 }
+  },
+  "is_component": false
+}
