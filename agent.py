@@ -114,6 +114,12 @@ def _print_event(event: dict, guard_enabled: bool = False, verbose_rag: bool = F
         if node_name.startswith("__") or not isinstance(update, dict):
             continue
 
+        # Dedicated reasoning node — true pre-tool thought
+        if node_name == "reason":
+            thought = update.get("reasoning") or ""
+            if thought:
+                print(f"{C.DIM}{C.YELLOW}[REASON]  {thought}{C.RESET}")
+
         # Stage B — RAG retrievals: collapsed by default, full with --verbose-rag
         chunks = update.get("retrieved_chunks", [])
         if chunks:
@@ -366,7 +372,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--model",
-        default=os.getenv("OLLAMA_MODEL", "llama3.1:8b"),
+        default=os.getenv("OLLAMA_MODEL", "qwen2.5:1.5b"),
         help="Ollama model name  (default: $OLLAMA_MODEL or llama3.1:8b)",
     )
     parser.add_argument(

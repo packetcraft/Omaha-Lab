@@ -1,7 +1,7 @@
 # Product Requirements Document: Omaha-Lab (V4)
 
 **Subtitle:** A hands-on lab guide for local LLM security, agentic tool-calling, and OWASP mitigation.
-**Version:** 4.3
+**Version:** 4.4
 **Status:** Draft
 **Last Updated:** 2026-04-29
 
@@ -48,8 +48,9 @@ The platform serves two primary audiences: security practitioners who want a rea
 | Layer | Component | Technical Specification |
 |---|---|---|
 | Inference | LLM Engine | Ollama (Metal / CUDA / CPU) |
-| Reasoning | Core Model | Llama 3.1 8B (default) or 70B (high-resource) |
-| Fallback Model | Lightweight Option | Qwen 2.5 1.5B (low-VRAM / CPU-only machines; supports tool calling) |
+| Reasoning | Default Model | Qwen 2.5 1.5B (CPU-friendly, supports tool calling) |
+| Reasoning | Full-power Option | Qwen 2.5 7B (stronger reasoning, requires ~8 GB VRAM) |
+| Reasoning | Dedicated Reason Node | Text-only LLM call before tool dispatch — surfaces explicit [REASON] step, solving Qwen 2.5's text/tool-call separation |
 | Orchestration | State Machine | LangGraph (Python 3.11+) |
 | Persona | Agent Identity | YAML persona configs; system prompt template loader |
 | Context / RAG | Document Store | Markdown files → ChromaDB (local vector store) |
@@ -91,9 +92,9 @@ The workbench must provide parity across both macOS and Windows environments.
 - CUDA acceleration if NVIDIA GPU present; otherwise CPU mode
 - Git Bash used as the primary shell throughout all lab instructions
 
-### 4.2 Model Fallback Strategy
+### 4.2 Model Strategy
 
-Users whose hardware cannot run `qwen2.5:7b` at acceptable speed should be directed to `qwen2.5:1.5b` via Ollama. Both models are from the same Qwen 2.5 family and support the tools API, ensuring consistent tool-calling behaviour across all labs. `phi3:mini` is not a valid fallback as it does not support tool calling (returns HTTP 400). Any lab that only functions on 7B+ must be clearly marked.
+`qwen2.5:1.5b` is the default model — it runs on CPU-only machines and supports the Ollama tools API, making it the baseline for all labs. Users with ~8 GB of VRAM can set `OLLAMA_MODEL=qwen2.5:7b` for stronger reasoning. Both models are from the same Qwen 2.5 family and produce consistent tool-calling behaviour. `phi3:mini` is not a valid alternative as it does not support tool calling (returns HTTP 400). Any lab that requires noticeably better reasoning quality should note "7B recommended" but must not require it.
 
 ---
 
@@ -164,7 +165,7 @@ omaha-lab/
 
 ### 6.1 Agentic Logic & Tool Calling
 
-- **ReAct Loop:** LangGraph state machine implementing Reason → Act → Observe cycles
+- **ReAct Loop:** LangGraph state machine with a dedicated **Reason Node** (LLM call, tools disabled) that runs before the **Agent Node** (LLM + tool registry). The Reason Node produces an explicit `[REASON]` thought that is injected into the Agent Node's context, solving the Qwen 2.5 limitation where text and tool calls cannot coexist in a single response. After a tool executes, the Agent Node produces the final `[RESPOND]` without re-running reasoning. Full cycle: Reason → Act → Observe → Respond.
 - **Tool Registry:** Modular Python tool definitions callable by the agent
 - **Live Tools (internet-connected):**
   - Web search (DuckDuckGo or Tavily API)
@@ -389,7 +390,7 @@ Each stage is designed as a discrete, self-contained unit that can be handed to 
 
 **Stage 2: Base ReAct Agent**
 
-> **Prompt a coding agent:** "Build the base LangGraph ReAct agent for Omaha-Lab. Use Ollama as the LLM backend (model configurable via env var `OLLAMA_MODEL`, default `qwen2.5:7b`). The agent should implement a standard ReAct loop: receive user message → reason → optionally call a tool → observe result → respond. No tools yet — tool registry should exist but be empty. The agent should run from CLI: `python agent.py`. Print the full ReAct trace to stdout on each turn. Validate it works with both `qwen2.5:7b` and `qwen2.5:1.5b` (low-VRAM fallback). Do not use `phi3:mini` — it does not support the tools API."
+> **Prompt a coding agent:** "Build the base LangGraph ReAct agent for Omaha-Lab. Use Ollama as the LLM backend (model configurable via env var `OLLAMA_MODEL`, default `qwen2.5:1.5b`). The agent should implement a standard ReAct loop: receive user message → reason → optionally call a tool → observe result → respond. No tools yet — tool registry should exist but be empty. The agent should run from CLI: `python agent.py`. Print the full ReAct trace to stdout on each turn. Validate it works with both `qwen2.5:1.5b` (default) and `qwen2.5:7b` (full-power). Do not use `phi3:mini` — it does not support the tools API."
 
 **Deliverables:** `agent.py`, `graph.py` (LangGraph state machine), `state.py` (AgentState schema)
 **Depends on:** Stage 1
@@ -511,6 +512,32 @@ Chat Settings widgets (sidebar gear): **Persona** (Select), **Guard** (Switch), 
 
 ---
 
+### Phase 11 — Reasoning Architecture
+
+**Stage 13: Dedicated Reason Node**
+
+> **What was built:** Qwen 2.5 (and most local models) enforce a strict separation between text responses and tool calls — a single LLM turn can produce one or the other, but not both. This means any "Thought:" the model produces always appears *after* observing a tool result, not *before* deciding which tool to call. The dedicated Reason Node solves this architecturally.
+
+**Implementation:**
+- A `reason_node` is added to the LangGraph graph that calls the LLM with **no tools bound** and a reasoning-focused system prompt. It runs before `agent_node` on every new user turn.
+- The model is forced into a text-only response, producing a step-by-step thought stored in `AgentState.reasoning`.
+- `agent_node` injects the stored reasoning as a `SystemMessage` ("Your prior reasoning: …") before calling the tool-capable LLM, then clears the field.
+- `tools → agent_node` edges bypass `reason_node` — post-observation synthesis does not re-reason.
+- Full trace: `[REASON]` → `[ACT]` → `[OBSERVE]` → `[RESPOND]`
+
+**Graph wiring:**
+- Entry path: `reason → agent` (no guard/RAG), or `guard_input → reason → agent`, or `rag → reason → agent`
+- Loop path: `tools → agent` (reason bypassed for the synthesis turn)
+
+**`AgentState` change:** Added `reasoning: str` field.
+
+**Display:** Both CLI (`_print_event`) and web UI (`_handle_event`) render the reason node output as `[REASON]` / "Reasoning" step card before any tool call.
+
+**Deliverables:** Updated `state.py`, `graph.py`, `agent.py`, `ui.py`
+**Depends on:** Stage 12
+
+---
+
 ### Development Stage Summary
 
 ```
@@ -545,6 +572,9 @@ Phase 9: Content & Publish (can run Stages 10 & 11 in parallel)
 
 Phase 10: Web UI (optional, additive)
   └─ Stage 12: Chainlit Web Chat UI
+
+Phase 11: Reasoning Architecture (additive, no breaking changes)
+  └─ Stage 13: Dedicated Reason Node
 ```
 
 ---

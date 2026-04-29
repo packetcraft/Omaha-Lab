@@ -12,3 +12,5 @@ class AgentState(TypedDict):
     retrieved_chunks: list
     # Set to True by the guard_input node when a message is blocked; routes graph to END.
     guard_blocked: bool
+    # Pre-tool reasoning text produced by reason_node; cleared after agent_node consumes it.
+    reasoning: str

@@ -14,7 +14,7 @@ User Input
                        │ no match
                        ▼
 ┌─────────────────────────────────────────────────────────┐
-│  Llama Guard 3 (Input Guardrail — S1–S14)               │
+│  Llama Guard 3  (Input Guardrail — S1–S14)              │
 └──────────────────────┬──────────────────────────────────┘
                        │ safe
                        ▼
@@ -24,26 +24,27 @@ User Input
                        │ top-3 chunks
                        ▼
 ┌─────────────────────────────────────────────────────────┐
-│  Persona System Prompt  (YAML → SystemMessage)          │
+│  Reason Node  (LLM, tools disabled)                     │
+│    [REASON] step-by-step thought before any tool call   │
 └──────────────────────┬──────────────────────────────────┘
-                       │
+                       │ Thought injected into context
                        ▼
 ┌─────────────────────────────────────────────────────────┐
-│  LangGraph ReAct Agent  (Ollama LLM)                    │
-│    Reason → Tool Call → Observe → Respond               │
+│  Agent Node  (LLM + tool registry)                      │
+│    [ACT] tool call  ─or─  [RESPOND] final answer        │
 └──────────────────────┬──────────────────────────────────┘
                        │ high-risk tool?
                        ▼
 ┌─────────────────────────────────────────────────────────┐
 │  HITL Authorization  (human approve/deny)               │
 └──────────────────────┬──────────────────────────────────┘
-                       │
+                       │ approved → Tool executes → [OBSERVE]
+                       │           └─ result fed back to Agent Node
                        ▼
 ┌─────────────────────────────────────────────────────────┐
 │  Output Guardrails                                      │
 │    Presidio PII Redaction                               │
 │    Canary Token Detection                               │
-│    Output Schema Validation                             │
 └──────────────────────┬──────────────────────────────────┘
                        │
                        ▼
@@ -57,9 +58,9 @@ User Input
 | Layer | Technology |
 |---|---|
 | Local LLM inference | Ollama (Metal / CUDA / CPU) |
-| Default model | Qwen 2.5 7B (recommended — best tool-calling discipline) |
-| Alternative | Llama 3.1 8B |
-| Fallback model | Phi-3 Mini 3.8B (low-VRAM / CPU-only) |
+| Default model | Qwen 2.5 1.5B (CPU-friendly, supports tool calling) |
+| Full-power option | Qwen 2.5 7B (stronger reasoning, requires ~8 GB VRAM) |
+| Pre-tool reasoning | Dedicated Reason Node (LLM, tools disabled — explicit [REASON] step) |
 | Agent orchestration | LangGraph (ReAct loop) |
 | Visual UI | Langflow |
 | Vector store / RAG | ChromaDB + nomic-embed-text |
@@ -83,12 +84,11 @@ User Input
 **Required Ollama models** (pulled during setup):
 
 ```bash
-ollama pull qwen2.5:7b         # Recommended reasoning model (~4.7 GB) — best tool-calling
+ollama pull qwen2.5:1.5b       # Default model (~1.0 GB) — runs on CPU-only machines, supports tools
 ollama pull nomic-embed-text   # RAG embeddings (~274 MB)
 ollama pull llama-guard3       # Input safety classifier (~6.0 GB)
-ollama pull qwen2.5:1.5b          # Fallback for low-VRAM / CPU-only machines (~1.0 GB, supports tools)
-# Optional alternative reasoning model:
-ollama pull llama3.1:8b        # Works but has aggressive tool-calling behaviour
+# Optional — stronger reasoning if VRAM allows:
+ollama pull qwen2.5:7b         # Full-power option (~4.7 GB, requires ~8 GB VRAM)
 ```
 
 **API keys** (free tier, optional):
@@ -105,10 +105,10 @@ brew install ollama
 ollama serve &
 
 # 2. Pull required models
-ollama pull qwen2.5:7b
+ollama pull qwen2.5:1.5b
 ollama pull nomic-embed-text
 ollama pull llama-guard3
-ollama pull qwen2.5:1.5b
+# optional: ollama pull qwen2.5:7b
 
 # 3. Clone the repo
 git clone https://github.com/omaha-lab/omaha-lab.git
@@ -137,10 +137,10 @@ cp .env.example .env
 ollama serve &
 
 # 2. Pull required models
-ollama pull qwen2.5:7b
+ollama pull qwen2.5:1.5b
 ollama pull nomic-embed-text
 ollama pull llama-guard3
-ollama pull qwen2.5:1.5b
+# optional: ollama pull qwen2.5:7b
 
 # 3. Clone the repo
 git clone https://github.com/omaha-lab/omaha-lab.git
@@ -158,7 +158,7 @@ cp .env.example .env
 # Edit .env and add your WEATHER_API_KEY and SEARCH_API_KEY
 ```
 
-> **Low-VRAM / CPU-only machines:** Set `OLLAMA_MODEL=qwen2.5:1.5b` in your `.env` file to use the lightweight fallback model.
+> **Higher-end machines:** Set `OLLAMA_MODEL=qwen2.5:7b` in your `.env` file for stronger reasoning if you have ~8 GB of VRAM available.
 
 ---
 

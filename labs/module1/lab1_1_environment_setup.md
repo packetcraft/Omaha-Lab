@@ -71,8 +71,8 @@ Expected output: same JSON as above.
 Pull the three models used across all labs. This will take several minutes depending on your connection speed.
 
 ```bash
-# Recommended reasoning model — best tool-calling discipline (~4.7 GB)
-ollama pull qwen2.5:7b
+# Default reasoning model — runs on CPU-only machines, supports tool calling (~1.0 GB)
+ollama pull qwen2.5:1.5b
 
 # Embedding model for RAG (~274 MB)
 ollama pull nomic-embed-text
@@ -81,15 +81,13 @@ ollama pull nomic-embed-text
 ollama pull llama-guard3
 ```
 
-**Low-VRAM / CPU-only machines:** If `qwen2.5:7b` is too slow (>60 seconds per response), use the lightweight fallback:
+**Higher-end machines (8 GB+ VRAM):** Pull the full-power variant for stronger reasoning:
 
 ```bash
-ollama pull qwen2.5:1.5b
+ollama pull qwen2.5:7b
 ```
 
-> **What about `llama3.1:8b`?** It works for conversational responses but its tool-calling
-> fine-tune is over-eager — it will call `web_search` for greetings and simple knowledge
-> questions. `qwen2.5:7b` has much better judgement about when to use tools.
+Then set `OLLAMA_MODEL=qwen2.5:7b` in your `.env` file (Step 6).
 
 Verify all models are available:
 
@@ -101,7 +99,7 @@ Expected output (your versions may differ):
 
 ```
 NAME                  ID              SIZE    MODIFIED
-llama3.1:8b           91ab477bec9d    4.7 GB  ...
+qwen2.5:1.5b          f2170aba9d47    1.0 GB  ...
 nomic-embed-text      0a109f422b47    274 MB  ...
 llama-guard3          36a04e2bff6b    6.0 GB  ...
 ```
@@ -188,7 +186,7 @@ Open `.env` in a text editor and set:
 
 ```
 OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=qwen2.5:7b
+OLLAMA_MODEL=qwen2.5:1.5b
 
 WEATHER_API_KEY=your_openweathermap_key_here
 SEARCH_API_KEY=your_tavily_key_here
@@ -196,7 +194,7 @@ SEARCH_API_KEY=your_tavily_key_here
 
 > If you do not have an OpenWeatherMap key, leave `WEATHER_API_KEY` blank. Weather lookups will return an error message, but all other functionality will work. DuckDuckGo search requires no key and works automatically.
 
-**Low-VRAM machines:** Set `OLLAMA_MODEL=qwen2.5:1.5b` to use the lightweight fallback.
+**Higher-end machines:** Set `OLLAMA_MODEL=qwen2.5:7b` if you pulled the larger model in Step 2.
 
 ---
 
@@ -255,7 +253,8 @@ Expected output:
 
 ```
 usage: agent.py [-h] [--model MODEL] [--base-url BASE_URL] [--persona NAME]
-                [--rag {on,off}] [--list-personas]
+                [--rag {on,off}] [--guard {on,off}] [--hitl {on,off}]
+                [--verbose-rag] [--list-personas]
 
 Omaha-Lab ReAct agent — local LLM security sandbox
 ...
@@ -271,9 +270,9 @@ If you see this output, your environment is ready. Proceed to **Lab 1.2**.
 |---|---|---|
 | `Error: cannot reach Ollama` | Ollama daemon not running | Run `ollama serve` in a separate terminal |
 | `ModuleNotFoundError` | venv not activated | Run `source venv/bin/activate` (or `Scripts/activate` on Windows) |
-| `Warning: model 'llama3.1:8b' not found` | Model not yet pulled | Run `ollama pull llama3.1:8b` |
+| `Warning: model 'qwen2.5:1.5b' not found` | Model not yet pulled | Run `ollama pull qwen2.5:1.5b` |
 | `pip install` fails on `presidio-*` | Missing build tools | Install `build-essential` (Linux) or Xcode CLI tools (macOS) |
-| Slow responses (>60s per turn) | 8B model too large for your hardware | Set `OLLAMA_MODEL=qwen2.5:1.5b` in `.env` |
+| Slow responses (>60s per turn) | CPU inference on a large model | Ensure `OLLAMA_MODEL=qwen2.5:1.5b` in `.env`; 1.5b is the intended default |
 | `pydantic-core` build fails with "version (3.14) is newer than PyO3's maximum" | venv created with Python 3.14 | Recreate venv: `rm -rf venv && py -3.12 -m venv venv` |
 
 ---

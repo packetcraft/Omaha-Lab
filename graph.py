@@ -10,10 +10,24 @@ from state import AgentState
 from tools import TOOLS as _DEFAULT_TOOLS
 
 _TOOL_DISCIPLINE = SystemMessage(content=(
-    "Tool-use rules: only call a tool when the request genuinely requires live or "
-    "external data (weather, web search, HTTP) or file access. "
-    "For greetings, casual conversation, math, definitions, and general knowledge "
-    "questions you can answer from training, respond directly — do NOT call any tool."
+    "Tool-use rules:\n"
+    "- Use web_search for any question involving current events, today's news, recent "
+    "developments, prices, or scores. Never answer time-sensitive queries from training "
+    "data — your knowledge has a cutoff date.\n"
+    "- Use get_weather for weather questions.\n"
+    "- Use write_file or read_file when asked to save or load content — do not write "
+    "file content as text in your response, call the tool.\n"
+    "- For multi-step tasks (e.g. search then save), call each required tool in sequence "
+    "until every step is complete.\n"
+    "- Answer directly (no tool) only for greetings, math, definitions, and stable facts."
+))
+
+_REASON_PROMPT = SystemMessage(content=(
+    "Before calling any tools, think step-by-step:\n"
+    "1. What exactly is the user asking for?\n"
+    "2. Is a tool needed? If yes, which one and what arguments?\n"
+    "3. If no tool is needed, plan your direct answer.\n"
+    "Output your reasoning concisely. Do NOT call any tools yet."
 ))
 
 
@@ -28,12 +42,28 @@ def build_graph(
     hitl: bool = False,        # Enable HITL authorization for high-risk tool calls
     hitl_node_factory=None,    # Optional override: callable() -> node fn (e.g. for Chainlit UI)
 ):
-    model = model or os.getenv("OLLAMA_MODEL", "llama3.1:8b")
+    model = model or os.getenv("OLLAMA_MODEL", "qwen2.5:1.5b")
     base_url = base_url or os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
     tools = tools if tools is not None else list(_DEFAULT_TOOLS)
 
     llm = ChatOllama(model=model, base_url=base_url)
     llm_with_tools = llm.bind_tools(tools) if tools else llm
+
+    # ------------------------------------------------------------------
+    # Reasoning node — text-only LLM call (no tools bound), runs before agent
+    # ------------------------------------------------------------------
+
+    if tools:
+        def reason_node(state: AgentState) -> dict:
+            messages = list(state["messages"])
+            prefix: list = [_REASON_PROMPT]
+            if system_prompt:
+                prefix.append(SystemMessage(content=system_prompt))
+            rag_ctx = state.get("rag_context") or ""
+            if rag_ctx:
+                prefix.append(SystemMessage(content=rag_ctx))
+            response = llm.invoke(prefix + messages)
+            return {"reasoning": response.content or ""}
 
     # ------------------------------------------------------------------
     # Core agent node
@@ -49,8 +79,11 @@ def build_graph(
         rag_ctx = state.get("rag_context") or ""
         if rag_ctx:
             prefix.append(SystemMessage(content=rag_ctx))
+        reasoning = state.get("reasoning") or ""
+        if reasoning:
+            prefix.append(SystemMessage(content=f"Your prior reasoning:\n{reasoning}"))
         response = llm_with_tools.invoke(prefix + messages)
-        return {"messages": [response]}
+        return {"messages": [response], "reasoning": ""}
 
     # ------------------------------------------------------------------
     # Routing: after agent node
@@ -75,7 +108,7 @@ def build_graph(
     # ------------------------------------------------------------------
 
     if guard is not None:
-        def guard_input_node(state: AgentState) -> dict:
+        def guard_input_node(state: AgentState) -> dict:  # noqa: E301
             last_human = next(
                 (m for m in reversed(state["messages"]) if isinstance(m, HumanMessage)),
                 None,
@@ -106,6 +139,8 @@ def build_graph(
                 return END
             if retriever is not None:
                 return "rag"
+            if tools:
+                return "reason"
             return "agent"
 
     # ------------------------------------------------------------------
@@ -153,6 +188,8 @@ def build_graph(
     graph.add_node("agent", agent_node)
 
     if tools:
+        graph.add_node("reason", reason_node)
+        graph.add_edge("reason", "agent")
         graph.add_node("tools", ToolNode(tools))
         graph.add_edge("tools", "agent")
 
@@ -171,7 +208,7 @@ def build_graph(
     if retriever is not None:
         from rag.graph_node import make_rag_node
         graph.add_node("rag", make_rag_node(retriever, guard=guard))
-        graph.add_edge("rag", "agent")
+        graph.add_edge("rag", "reason" if tools else "agent")
 
     if guard is not None:
         graph.add_node("guard_input", guard_input_node)
@@ -179,6 +216,8 @@ def build_graph(
         graph.set_entry_point("guard_input")
     elif retriever is not None:
         graph.set_entry_point("rag")
+    elif tools:
+        graph.set_entry_point("reason")
     else:
         graph.set_entry_point("agent")
 

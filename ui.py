@@ -28,7 +28,7 @@ from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 load_dotenv()
 
 _BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-_MODEL    = os.getenv("OLLAMA_MODEL",    "qwen2.5:7b")
+_MODEL    = os.getenv("OLLAMA_MODEL",    "qwen2.5:1.5b")
 
 _GUARD_LABELS: dict[str, str] = {
     "S1": "Violent Crimes",       "S2": "Non-Violent Crimes",
@@ -310,6 +310,13 @@ async def _handle_event(event: dict, use_guard: bool) -> str | None:
     for node_name, update in event.items():
         if node_name.startswith("__") or node_name == "hitl" or not isinstance(update, dict):
             continue
+
+        # Dedicated reasoning node — true pre-tool thought
+        if node_name == "reason":
+            thought = update.get("reasoning") or ""
+            if thought:
+                async with cl.Step(name="Reasoning", type="llm") as step:
+                    step.output = thought
 
         # RAG retrieval -------------------------------------------------------
         chunks = update.get("retrieved_chunks", [])
