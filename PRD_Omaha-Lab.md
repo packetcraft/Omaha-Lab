@@ -49,7 +49,7 @@ The platform serves two primary audiences: security practitioners who want a rea
 |---|---|---|
 | Inference | LLM Engine | Ollama (Metal / CUDA / CPU) |
 | Reasoning | Core Model | Llama 3.1 8B (default) or 70B (high-resource) |
-| Fallback Model | Lightweight Option | Phi-3 Mini 3.8B (low-VRAM / CPU-only machines) |
+| Fallback Model | Lightweight Option | Qwen 2.5 1.5B (low-VRAM / CPU-only machines; supports tool calling) |
 | Orchestration | State Machine | LangGraph (Python 3.11+) |
 | Persona | Agent Identity | YAML persona configs; system prompt template loader |
 | Context / RAG | Document Store | Markdown files → ChromaDB (local vector store) |
@@ -93,7 +93,7 @@ The workbench must provide parity across both macOS and Windows environments.
 
 ### 4.2 Model Fallback Strategy
 
-Users whose hardware cannot run Llama 3.1 8B at acceptable speed should be directed to `phi3:mini` via Ollama. All lab exercises must be validated against both models. Any lab that only functions on 8B+ must be clearly marked.
+Users whose hardware cannot run `qwen2.5:7b` at acceptable speed should be directed to `qwen2.5:1.5b` via Ollama. Both models are from the same Qwen 2.5 family and support the tools API, ensuring consistent tool-calling behaviour across all labs. `phi3:mini` is not a valid fallback as it does not support tool calling (returns HTTP 400). Any lab that only functions on 7B+ must be clearly marked.
 
 ---
 
@@ -148,7 +148,7 @@ omaha-lab/
 ### 5.2 README Requirements
 
 - Step-by-step setup for macOS and Windows (Git Bash), clearly separated
-- Model download commands (`ollama pull llama3.1:8b`, `ollama pull nomic-embed-text`, `ollama pull phi3:mini`)
+- Model download commands (`ollama pull qwen2.5:7b`, `ollama pull nomic-embed-text`, `ollama pull llama-guard3`, `ollama pull qwen2.5:1.5b` for low-VRAM fallback)
 - API key setup instructions for weather and search tool integrations
 - Quick-start: "run your first agent in under 10 minutes"
 
@@ -389,7 +389,7 @@ Each stage is designed as a discrete, self-contained unit that can be handed to 
 
 **Stage 2: Base ReAct Agent**
 
-> **Prompt a coding agent:** "Build the base LangGraph ReAct agent for Omaha-Lab. Use Ollama as the LLM backend (model configurable via env var `OLLAMA_MODEL`, default `llama3.1:8b`). The agent should implement a standard ReAct loop: receive user message → reason → optionally call a tool → observe result → respond. No tools yet — tool registry should exist but be empty. The agent should run from CLI: `python agent.py`. Print the full ReAct trace to stdout on each turn. Validate it works with both `llama3.1:8b` and `phi3:mini`."
+> **Prompt a coding agent:** "Build the base LangGraph ReAct agent for Omaha-Lab. Use Ollama as the LLM backend (model configurable via env var `OLLAMA_MODEL`, default `qwen2.5:7b`). The agent should implement a standard ReAct loop: receive user message → reason → optionally call a tool → observe result → respond. No tools yet — tool registry should exist but be empty. The agent should run from CLI: `python agent.py`. Print the full ReAct trace to stdout on each turn. Validate it works with both `qwen2.5:7b` and `qwen2.5:1.5b` (low-VRAM fallback). Do not use `phi3:mini` — it does not support the tools API."
 
 **Deliverables:** `agent.py`, `graph.py` (LangGraph state machine), `state.py` (AgentState schema)
 **Depends on:** Stage 1
@@ -493,8 +493,21 @@ Each stage is designed as a discrete, self-contained unit that can be handed to 
 
 > **Prompt a coding agent:** See `PLAN_ui_chainlit.md` for full implementation brief and coding agent prompt.
 
-**Deliverables:** `ui.py`, updated `requirements.txt`, updated `README.md` (Web UI section)
+**Deliverables:** `ui.py`, `.chainlit/config.toml`, updated `requirements.txt`, updated `README.md` (Web UI section), updated `chainlit.md` (in-app welcome screen with lab index)
 **Depends on:** Stage 11
+
+**Web UI design (implemented):**
+
+The Chainlit UI exposes the four CLI configurations as **Lab Mode profiles** (selected before the first message) and as individually overridable **Chat Settings** (sidebar gear icon):
+
+| Lab Mode profile | Presets | CLI equivalent |
+|---|---|---|
+| Bare | guard off · RAG off · HITL off | `python agent.py` |
+| Guarded | guard on · HITL on | `python agent.py --guard on --hitl on` |
+| RAG Analyst | RAG on · security_analyst persona | `python agent.py --persona security_analyst --rag on` |
+| Full Defense | all on · hr_assistant persona | `python agent.py --persona hr_assistant --rag on --guard on --hitl on` |
+
+Chat Settings widgets (sidebar gear): **Persona** (Select), **Guard** (Switch), **RAG** (Switch), **HITL** (Switch). Profiles initialize all four widgets; any widget change triggers a full agent rebuild using the current widget values — profile presets are not re-applied on settings updates.
 
 ---
 

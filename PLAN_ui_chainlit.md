@@ -109,9 +109,31 @@ to the four CLI quick-start commands in the README.
 "Full Defense" for Module 3 (defensive) labs. The name signals posture before the participant
 reads any lab instructions.
 
-**Secondary: Chat Settings** (sidebar gear icon) — fine-grained toggles for `--guard`, `--rag`,
-`--hitl`, and a persona dropdown for participants who need a custom combination. Advanced use only;
-most lab participants will use Lab Mode profiles exclusively.
+**Secondary: Chat Settings** (sidebar gear icon) — individual controls that mirror the four CLI
+flags. Profiles act as one-click presets that initialize all four controls; users can then override
+any flag independently mid-session without restarting.
+
+### Chat Settings widgets
+
+| Widget | Type | Values | Maps to CLI flag |
+|--------|------|--------|-----------------|
+| Persona | `Select` | none / customer_service / hr_assistant / security_analyst / code_assistant | `--persona` |
+| Guard | `Select` | off / on | `--guard on` |
+| RAG | `Select` | off / on | `--rag on` |
+| HITL | `Select` | off / on | `--hitl on` |
+
+### Recommended design: profiles as presets, controls as overrides
+
+1. On profile selection (`@cl.on_chat_start`), initialize all four `ChatSettings` widgets to the
+   profile's preset values — matching the four CLI recipes exactly.
+2. Any individual widget change fires `@cl.on_settings_update`, which reads the current values of
+   **all four** widgets and calls `_build_session(persona, rag, guard, hitl)` to rebuild the agent.
+3. The HITL queues (`hitl_req_q` / `hitl_res_q`) are torn down and recreated on each rebuild so
+   toggling HITL mid-session does not leave stale queue state.
+
+This means the four profiles are just named shortcuts — participants who need a custom combination
+(e.g. RAG on + guard on, no HITL) can compose it freely via the sidebar controls without touching
+the CLI.
 
 ---
 

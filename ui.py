@@ -21,7 +21,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 import chainlit as cl
-from chainlit.input_widget import Select
+from chainlit.input_widget import Select, Switch
 from dotenv import load_dotenv
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
@@ -103,17 +103,23 @@ async def on_chat_start():
     profile = cl.user_session.get("chat_profile") or "Bare"
     default_persona, use_rag, use_guard, use_hitl = _PROFILES.get(profile, _PROFILES["Bare"])
 
-    # Chat Settings — persona dropdown; default is the profile's preset
+    # Chat Settings — profile presets populate all four controls; each is individually overridable.
     settings = await cl.ChatSettings([
         Select(
             id="persona",
             label="Persona",
             values=list(_PERSONA_OPTIONS.keys()),
             initial_value=default_persona or "none",
-        )
+        ),
+        Switch(id="guard", label="Guard (Llama Guard 3 + Presidio)", initial=use_guard),
+        Switch(id="rag",   label="RAG",                              initial=use_rag),
+        Switch(id="hitl",  label="HITL (Human-in-the-Loop)",         initial=use_hitl),
     ]).send()
 
     persona_slug = _PERSONA_OPTIONS.get(settings.get("persona", "none"))
+    use_rag      = settings.get("rag",   use_rag)
+    use_guard    = settings.get("guard", use_guard)
+    use_hitl     = settings.get("hitl",  use_hitl)
 
     await cl.Message(
         content=f"**Lab Mode: {profile}** — initialising agent…", author="System"
@@ -147,14 +153,15 @@ async def _init_session(persona_slug, use_rag, use_guard, use_hitl):
 
 @cl.on_settings_update
 async def on_settings_update(settings):
-    """Rebuild the agent when the participant changes the persona mid-session."""
-    profile = cl.user_session.get("chat_profile") or "Bare"
-    _, use_rag, use_guard, use_hitl = _PROFILES.get(profile, _PROFILES["Bare"])
+    """Rebuild the agent when any Chat Setting changes. All four values come from the widgets."""
     persona_slug = _PERSONA_OPTIONS.get(settings.get("persona", "none"))
+    use_rag      = settings.get("rag",   False)
+    use_guard    = settings.get("guard", False)
+    use_hitl     = settings.get("hitl",  False)
 
     label = persona_slug.replace("_", " ").title() if persona_slug else "none"
     await cl.Message(
-        content=f"Switching persona to **{label}** — rebuilding agent…", author="System"
+        content=f"Settings changed (persona: **{label}**) — rebuilding agent…", author="System"
     ).send()
 
     await _init_session(persona_slug, use_rag, use_guard, use_hitl)

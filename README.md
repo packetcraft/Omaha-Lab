@@ -86,7 +86,7 @@ User Input
 ollama pull qwen2.5:7b         # Recommended reasoning model (~4.7 GB) — best tool-calling
 ollama pull nomic-embed-text   # RAG embeddings (~274 MB)
 ollama pull llama-guard3       # Input safety classifier (~6.0 GB)
-ollama pull phi3:mini          # Fallback for low-VRAM / CPU-only machines (~2.3 GB)
+ollama pull qwen2.5:1.5b          # Fallback for low-VRAM / CPU-only machines (~1.0 GB, supports tools)
 # Optional alternative reasoning model:
 ollama pull llama3.1:8b        # Works but has aggressive tool-calling behaviour
 ```
@@ -108,7 +108,7 @@ ollama serve &
 ollama pull qwen2.5:7b
 ollama pull nomic-embed-text
 ollama pull llama-guard3
-ollama pull phi3:mini
+ollama pull qwen2.5:1.5b
 
 # 3. Clone the repo
 git clone https://github.com/omaha-lab/omaha-lab.git
@@ -140,7 +140,7 @@ ollama serve &
 ollama pull qwen2.5:7b
 ollama pull nomic-embed-text
 ollama pull llama-guard3
-ollama pull phi3:mini
+ollama pull qwen2.5:1.5b
 
 # 3. Clone the repo
 git clone https://github.com/omaha-lab/omaha-lab.git
@@ -158,7 +158,7 @@ cp .env.example .env
 # Edit .env and add your WEATHER_API_KEY and SEARCH_API_KEY
 ```
 
-> **Low-VRAM / CPU-only machines:** Set `OLLAMA_MODEL=phi3:mini` in your `.env` file to use the lightweight fallback model.
+> **Low-VRAM / CPU-only machines:** Set `OLLAMA_MODEL=qwen2.5:1.5b` in your `.env` file to use the lightweight fallback model.
 
 ---
 
@@ -215,6 +215,8 @@ Select a **Lab Mode** from the profile picker before your first message:
 | **Guarded** | Llama Guard 3 · Presidio · HITL | `python agent.py --guard on --hitl on` |
 | **RAG Analyst** | RAG · Security Analyst persona | `python agent.py --persona security_analyst --rag on` |
 | **Full Defense** | RAG · Llama Guard 3 · Presidio · HITL | `python agent.py --persona hr_assistant --rag on --guard on --hitl on` |
+
+The sidebar gear icon exposes individual **Chat Settings** — Persona, Guard, RAG, and HITL — so any custom combination can be composed without touching the CLI. Profiles initialize all four controls; changing any toggle mid-session rebuilds the agent immediately.
 
 ---
 

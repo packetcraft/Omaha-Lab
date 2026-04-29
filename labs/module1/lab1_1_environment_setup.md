@@ -84,7 +84,7 @@ ollama pull llama-guard3
 **Low-VRAM / CPU-only machines:** If `qwen2.5:7b` is too slow (>60 seconds per response), use the lightweight fallback:
 
 ```bash
-ollama pull phi3:mini
+ollama pull qwen2.5:1.5b
 ```
 
 > **What about `llama3.1:8b`?** It works for conversational responses but its tool-calling
@@ -196,7 +196,7 @@ SEARCH_API_KEY=your_tavily_key_here
 
 > If you do not have an OpenWeatherMap key, leave `WEATHER_API_KEY` blank. Weather lookups will return an error message, but all other functionality will work. DuckDuckGo search requires no key and works automatically.
 
-**Low-VRAM machines:** Set `OLLAMA_MODEL=phi3:mini` to use the lightweight fallback.
+**Low-VRAM machines:** Set `OLLAMA_MODEL=qwen2.5:1.5b` to use the lightweight fallback.
 
 ---
 
@@ -273,7 +273,7 @@ If you see this output, your environment is ready. Proceed to **Lab 1.2**.
 | `ModuleNotFoundError` | venv not activated | Run `source venv/bin/activate` (or `Scripts/activate` on Windows) |
 | `Warning: model 'llama3.1:8b' not found` | Model not yet pulled | Run `ollama pull llama3.1:8b` |
 | `pip install` fails on `presidio-*` | Missing build tools | Install `build-essential` (Linux) or Xcode CLI tools (macOS) |
-| Slow responses (>60s per turn) | 8B model too large for your hardware | Set `OLLAMA_MODEL=phi3:mini` in `.env` |
+| Slow responses (>60s per turn) | 8B model too large for your hardware | Set `OLLAMA_MODEL=qwen2.5:1.5b` in `.env` |
 | `pydantic-core` build fails with "version (3.14) is newer than PyO3's maximum" | venv created with Python 3.14 | Recreate venv: `rm -rf venv && py -3.12 -m venv venv` |
 
 ---
