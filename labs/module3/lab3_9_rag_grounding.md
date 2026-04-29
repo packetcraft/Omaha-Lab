@@ -85,7 +85,7 @@ Record whether the model:
 Exit and restart with RAG enabled:
 
 ```bash
-python agent.py --persona security_analyst --rag on
+python agent.py --persona security_analyst --rag on --verbose-rag
 ```
 
 Expected startup banner:
@@ -166,7 +166,7 @@ Recall that `context_docs/poisoned_policy.md` is in the same corpus as the clean
 - With RAG + guard: answer is correct and injection is blocked (both risks mitigated)
 
 ```bash
-python agent.py --persona security_analyst --rag on --guard on
+python agent.py --persona security_analyst --rag on --verbose-rag --guard on
 ```
 
 ```

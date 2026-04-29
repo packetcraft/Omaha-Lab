@@ -26,19 +26,21 @@ The Omaha-Lab guard pipeline extends Llama Guard coverage to RAG chunks: each re
 ## Setup
 
 ```bash
-python agent.py --persona security_analyst --rag on
+python agent.py --persona security_analyst --rag on --verbose-rag
 ```
 
 Expected startup banner:
 
 ```
 Omaha-Lab Agent  |  model: qwen2.5:7b
-Persona:         security_analyst (Morgan)
-Tools:           web_search, http_get
-RAG:             on  (4 documents indexed)
+Persona:         Security Analyst [high]
+Tools:           web_search, http_get, read_file, write_file
+RAG:             on
 Guard:           off
 ──────────────────────────────────────────────────
 ```
+
+The collection size displayed in the banner reflects the total chunk count (typically 60+ chunks split from the 4 source documents), not the document count.
 
 ---
 
@@ -94,6 +96,8 @@ You: What does the security policy say about incident response procedures?
 
 Check whether the same `poisoned_policy.md` chunk is retrieved again or a different section surfaces. A well-crafted poisoning document scores highly across a family of related queries.
 
+> **Note:** `company_policy.md` Section 6 also contains incident reporting content, so it may appear alongside `poisoned_policy.md` in the retrieval trace. The key observation is whether the poisoned document still surfaces — even as a second or third result — and contributes its injected payload to the model's context.
+
 ### Step 4: Inspect the Poisoned Document
 
 Examine the raw content of the poisoned file:
@@ -109,7 +113,7 @@ Read all sections. Identify Section 5 and the specific language used in the payl
 Exit and restart with both RAG and Guard active:
 
 ```bash
-python agent.py --persona security_analyst --rag on --guard on
+python agent.py --persona security_analyst --rag on --verbose-rag --guard on
 ```
 
 Repeat the Step 2 query:

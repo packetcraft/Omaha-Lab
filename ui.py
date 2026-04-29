@@ -1,0 +1,374 @@
+#!/usr/bin/env python3
+"""Omaha-Lab Chainlit web UI — optional browser interface for the LangGraph agent.
+
+Usage:
+    chainlit run ui.py          # http://localhost:8000
+    chainlit run ui.py -w       # with auto-reload
+
+The CLI (agent.py) is unchanged and continues to work independently.
+"""
+from __future__ import annotations
+import asyncio
+import json
+import os
+import queue
+import sys
+import threading
+import uuid
+from pathlib import Path
+
+# Ensure the project root is on sys.path when Chainlit launches ui.py
+sys.path.insert(0, str(Path(__file__).parent))
+
+import chainlit as cl
+from chainlit.input_widget import Select
+from dotenv import load_dotenv
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+
+load_dotenv()
+
+_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+_MODEL    = os.getenv("OLLAMA_MODEL",    "qwen2.5:7b")
+
+_GUARD_LABELS: dict[str, str] = {
+    "S1": "Violent Crimes",       "S2": "Non-Violent Crimes",
+    "S3": "Sex-Related Crimes",   "S4": "Child Sexual Exploitation",
+    "S5": "Defamation",           "S6": "Specialized Advice",
+    "S7": "Privacy",              "S8": "Intellectual Property",
+    "S9": "Indiscriminate Weapons", "S10": "Hate",
+    "S11": "Suicide & Self-Harm", "S12": "Sexual Content",
+    "S13": "Elections",           "S14": "Code Interpreter Abuse",
+    "S15": "Prompt Injection",
+}
+
+# ---------------------------------------------------------------------------
+# Lab Mode profiles  — (default_persona, rag, guard, hitl)
+# Persona is the default for the profile; participants can override via Chat Settings.
+# ---------------------------------------------------------------------------
+
+_PROFILES: dict[str, tuple] = {
+    "Bare":         (None,               False, False, False),
+    "Guarded":      (None,               False, True,  True),
+    "RAG Analyst":  ("security_analyst", True,  False, False),
+    "Full Defense": ("hr_assistant",     True,  True,  True),
+}
+
+# Persona options available in Chat Settings
+_PERSONA_OPTIONS: dict[str, str | None] = {
+    "none":             None,
+    "customer_service": "customer_service",
+    "hr_assistant":     "hr_assistant",
+    "security_analyst": "security_analyst",
+    "code_assistant":   "code_assistant",
+}
+
+_PROFILE_DESC: dict[str, str] = {
+    "Bare": (
+        "Raw agent — no guardrails, no RAG. Attack surface fully open. "
+        "Use for **Module 2** offensive labs."
+    ),
+    "Guarded": (
+        "Llama Guard 3 input filtering · Presidio PII redaction · HITL authorization. "
+        "No RAG. Use for **Module 3** single-layer labs."
+    ),
+    "RAG Analyst": (
+        "Security Analyst persona with RAG retrieval from `context_docs/`. "
+        "No guardrails — ideal for RAG poisoning and indirect injection labs."
+    ),
+    "Full Defense": (
+        "All defensive layers active: RAG · Llama Guard 3 · Presidio · HITL. "
+        "HR Assistant persona. Use for **Module 3** full-stack labs."
+    ),
+}
+
+
+# ---------------------------------------------------------------------------
+# Lab Mode selector
+# ---------------------------------------------------------------------------
+
+@cl.set_chat_profiles
+async def chat_profiles():
+    return [
+        cl.ChatProfile(name=name, markdown_description=_PROFILE_DESC[name])
+        for name in _PROFILES
+    ]
+
+
+# ---------------------------------------------------------------------------
+# Session initialisation
+# ---------------------------------------------------------------------------
+
+@cl.on_chat_start
+async def on_chat_start():
+    profile = cl.user_session.get("chat_profile") or "Bare"
+    default_persona, use_rag, use_guard, use_hitl = _PROFILES.get(profile, _PROFILES["Bare"])
+
+    # Chat Settings — persona dropdown; default is the profile's preset
+    settings = await cl.ChatSettings([
+        Select(
+            id="persona",
+            label="Persona",
+            values=list(_PERSONA_OPTIONS.keys()),
+            initial_value=default_persona or "none",
+        )
+    ]).send()
+
+    persona_slug = _PERSONA_OPTIONS.get(settings.get("persona", "none"))
+
+    await cl.Message(
+        content=f"**Lab Mode: {profile}** — initialising agent…", author="System"
+    ).send()
+
+    await _init_session(persona_slug, use_rag, use_guard, use_hitl)
+
+
+async def _init_session(persona_slug, use_rag, use_guard, use_hitl):
+    """Build the agent session and store it. Called at start and on settings change."""
+    try:
+        session = await asyncio.to_thread(
+            _build_session, persona_slug, use_rag, use_guard, use_hitl
+        )
+    except Exception as exc:
+        await cl.Message(
+            content=f"Setup failed: `{exc}`\n\nIs Ollama running? (`ollama serve`)",
+            author="System",
+        ).send()
+        return
+
+    cl.user_session.set("session", session)
+
+    parts = [f"persona: **{persona_slug.replace('_', ' ').title() if persona_slug else 'none'}**"]
+    parts.append(f"rag: **{'on' if use_rag else 'off'}**")
+    parts.append(f"guard: **{'on' if use_guard else 'off'}**")
+    parts.append(f"hitl: **{'on' if use_hitl else 'off'}**")
+
+    await cl.Message(content="Ready — " + " · ".join(parts), author="System").send()
+
+
+@cl.on_settings_update
+async def on_settings_update(settings):
+    """Rebuild the agent when the participant changes the persona mid-session."""
+    profile = cl.user_session.get("chat_profile") or "Bare"
+    _, use_rag, use_guard, use_hitl = _PROFILES.get(profile, _PROFILES["Bare"])
+    persona_slug = _PERSONA_OPTIONS.get(settings.get("persona", "none"))
+
+    label = persona_slug.replace("_", " ").title() if persona_slug else "none"
+    await cl.Message(
+        content=f"Switching persona to **{label}** — rebuilding agent…", author="System"
+    ).send()
+
+    await _init_session(persona_slug, use_rag, use_guard, use_hitl)
+
+
+def _build_session(persona_slug, use_rag, use_guard, use_hitl):
+    """Synchronous setup — runs in a background thread via asyncio.to_thread."""
+    from graph import build_graph
+    from tools import TOOLS
+    from agent import _filter_tools, _setup_rag, _setup_guard
+    from personas import PersonaLoader
+
+    persona      = PersonaLoader.load(persona_slug) if persona_slug else None
+    active_tools = _filter_tools(TOOLS, persona)
+    retriever    = _setup_rag(_BASE_URL) if use_rag else None
+
+    llama_guard = presidio_guard = None
+    if use_guard:
+        llama_guard, presidio_guard = _setup_guard(_BASE_URL)
+
+    # For HITL: two queues bridge the graph thread and the async UI loop.
+    #   hitl_req_q: graph thread → UI  (tool_name, args)
+    #   hitl_res_q: UI → graph thread  (bool: approved)
+    hitl_req_q = hitl_res_q = None
+    hitl_factory = None
+    if use_hitl:
+        hitl_req_q = queue.Queue()
+        hitl_res_q = queue.Queue()
+
+        def _approval_fn(tool_name, args):
+            hitl_req_q.put((tool_name, args))
+            return hitl_res_q.get(timeout=300)  # blocks graph thread until UI responds
+
+        from graph_nodes.hitl_ui import make_ui_hitl_node
+        hitl_factory = lambda: make_ui_hitl_node(_approval_fn)
+
+    graph = build_graph(
+        model=_MODEL,
+        base_url=_BASE_URL,
+        tools=active_tools,
+        system_prompt=persona.system_prompt if persona else None,
+        retriever=retriever,
+        guard=llama_guard,
+        presidio_guard=presidio_guard,
+        hitl=use_hitl,
+        hitl_node_factory=hitl_factory,
+    )
+
+    return {
+        "graph":      graph,
+        "use_guard":  use_guard,
+        "use_hitl":   use_hitl,
+        "hitl_req_q": hitl_req_q,
+        "hitl_res_q": hitl_res_q,
+        "thread_id":  str(uuid.uuid4()),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Message handler
+# ---------------------------------------------------------------------------
+
+@cl.on_message
+async def on_message(user_msg: cl.Message):
+    session = cl.user_session.get("session")
+    if not session:
+        await cl.Message(
+            content="Session not initialised — reload the page.", author="System"
+        ).send()
+        return
+
+    graph      = session["graph"]
+    lc_config  = {"configurable": {"thread_id": session["thread_id"]}}
+    use_guard  = session["use_guard"]
+    use_hitl   = session["use_hitl"]
+    hitl_req_q = session.get("hitl_req_q")
+    hitl_res_q = session.get("hitl_res_q")
+
+    event_q: queue.Queue = queue.Queue()
+
+    def _run_graph():
+        try:
+            for ev in graph.stream(
+                {"messages": [HumanMessage(content=user_msg.content)]},
+                config=lc_config,
+                stream_mode="updates",
+            ):
+                event_q.put(("event", ev))
+        except Exception as exc:
+            event_q.put(("error", str(exc)))
+        finally:
+            event_q.put(("done", None))
+
+    threading.Thread(target=_run_graph, daemon=True).start()
+
+    final_text: str | None = None
+
+    while True:
+        # Service pending HITL approval requests before draining new events.
+        # The graph thread blocks inside the HITL node until we respond here.
+        if use_hitl and hitl_req_q and not hitl_req_q.empty():
+            tool_name, args = hitl_req_q.get_nowait()
+            action = await cl.AskActionMessage(
+                content=(
+                    f"**HITL — High-risk action requested**\n\n"
+                    f"**Tool:** `{tool_name}`\n"
+                    f"```json\n{json.dumps(args, indent=2)}\n```"
+                ),
+                actions=[
+                    cl.Action(name="approve", value="approved", label="Approve"),
+                    cl.Action(name="deny",    value="denied",   label="Deny"),
+                ],
+            ).send()
+            approved = action is not None and action.value == "approved"
+            hitl_res_q.put(approved)
+            status = "Approved" if approved else "Denied"
+            await cl.Message(content=f"HITL decision: **{status}**", author="System").send()
+
+        try:
+            kind, payload = event_q.get_nowait()
+        except queue.Empty:
+            await asyncio.sleep(0.05)
+            continue
+
+        if kind == "done":
+            break
+
+        if kind == "error":
+            await cl.Message(content=f"Agent error: `{payload}`", author="System").send()
+            break
+
+        final_text = await _handle_event(payload, use_guard) or final_text
+
+    if final_text:
+        await cl.Message(content=final_text).send()
+
+
+# ---------------------------------------------------------------------------
+# Event renderer
+# ---------------------------------------------------------------------------
+
+async def _handle_event(event: dict, use_guard: bool) -> str | None:
+    """Render one LangGraph stream event as Chainlit steps. Returns response text or None."""
+    final_text = None
+
+    for node_name, update in event.items():
+        if node_name.startswith("__") or node_name == "hitl" or not isinstance(update, dict):
+            continue
+
+        # RAG retrieval -------------------------------------------------------
+        chunks = update.get("retrieved_chunks", [])
+        if chunks:
+            sources: dict[str, int] = {}
+            for c in chunks:
+                src = c.get("source", "?")
+                sources[src] = sources.get(src, 0) + 1
+            src_str   = ", ".join(f"{s}({n})" if n > 1 else s for s, n in sources.items())
+            dist_vals = [c["distance"] for c in chunks if c.get("distance")]
+            dist_str  = f" · dist {min(dist_vals):.3f}–{max(dist_vals):.3f}" if dist_vals else ""
+
+            async with cl.Step(name="RAG Retrieval", type="retrieval") as step:
+                lines = [f"{len(chunks)} chunk(s) from {src_str}{dist_str}\n"]
+                for c in chunks:
+                    lines.append(f"**{c.get('source', '?')}:** {c.get('text', '')[:200]}…")
+                step.output = "\n".join(lines)
+
+        # Guard input — pass (no messages in update) --------------------------
+        if (
+            node_name == "guard_input"
+            and "guard_blocked" in update
+            and not update["guard_blocked"]
+            and not update.get("messages")
+        ):
+            async with cl.Step(name="Input Guard — passed", type="tool") as step:
+                step.output = "Input cleared (regex pre-filter + Llama Guard 3)"
+
+        # Messages from each node ---------------------------------------------
+        for msg in update.get("messages", []):
+            if isinstance(msg, AIMessage):
+                if msg.tool_calls:
+                    if msg.content:
+                        async with cl.Step(name="Reasoning", type="llm") as step:
+                            step.output = msg.content
+                    for tc in msg.tool_calls:
+                        async with cl.Step(name=f"Tool call: {tc['name']}", type="tool") as step:
+                            step.input  = json.dumps(tc.get("args", {}), indent=2)
+
+                elif node_name == "guard_input":
+                    layer = msg.additional_kwargs.get("guard_layer", "guard")
+                    cat   = msg.additional_kwargs.get("guard_category", "")
+                    label = _GUARD_LABELS.get(cat, cat) if cat else "policy violation"
+                    async with cl.Step(name="Input Guard — BLOCKED", type="tool") as step:
+                        step.output = f"Layer: {layer} | {cat}: {label}"
+                    content = msg.content
+                    final_text = content if isinstance(content, str) else str(content or "")
+
+                elif node_name == "output_guard":
+                    redacted = msg.additional_kwargs.get("presidio_redacted", False)
+                    canary   = msg.additional_kwargs.get("canary_triggered",  False)
+                    async with cl.Step(name="Output Guard", type="tool") as step:
+                        step.output = (
+                            f"Presidio PII: {'redacted' if redacted else 'clean'} · "
+                            f"Canary: {'ALERT' if canary else 'clean'}"
+                        )
+                    content = msg.content
+                    final_text = content if isinstance(content, str) else ""
+
+                elif node_name == "agent" and not use_guard:
+                    content = msg.content
+                    final_text = content if isinstance(content, str) else ""
+
+            elif isinstance(msg, ToolMessage):
+                tool_name = getattr(msg, "name", "tool")
+                async with cl.Step(name=f"Tool result: {tool_name}", type="tool") as step:
+                    step.output = msg.content
+
+    return final_text

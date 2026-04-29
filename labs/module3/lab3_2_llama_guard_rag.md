@@ -26,7 +26,7 @@ This lab replays the Lab 2.8 attack with `--guard on` to verify the mitigation.
 ## Setup
 
 ```bash
-python agent.py --persona security_analyst --rag on --guard on
+python agent.py --persona security_analyst --rag on --verbose-rag --guard on
 ```
 
 Expected startup banner:
@@ -115,7 +115,7 @@ Look for entries where the `source` field indicates a RAG chunk rather than a di
 Exit and run the same query without `--guard on` to confirm the unguarded version shows the injected content:
 
 ```bash
-python agent.py --persona security_analyst --rag on
+python agent.py --persona security_analyst --rag on --verbose-rag
 ```
 
 ```

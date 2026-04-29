@@ -51,7 +51,7 @@ Guard:           off
 Verify that a normal multi-step task completes without hitting the recursion limit:
 
 ```
-You: Search the web for today's top AI news, then write a summary to a file called news.txt.
+You: step-1 Search the web for today's top AI news. step-2 Once you have the results, write a summary of what you found to the file news.txt in workspace. Do not respond to me until both steps are done.
 ```
 
 This uses two tool calls and terminates in 3–4 graph steps. Confirm it completes with `[RESPOND]`.

@@ -9,7 +9,12 @@ User Input
     │
     ▼
 ┌─────────────────────────────────────────────────────────┐
-│  Llama Guard 3 (Input Guardrail)                        │
+│  Regex Pre-filter  (S15: Prompt Injection patterns)     │
+└──────────────────────┬──────────────────────────────────┘
+                       │ no match
+                       ▼
+┌─────────────────────────────────────────────────────────┐
+│  Llama Guard 3 (Input Guardrail — S1–S14)               │
 └──────────────────────┬──────────────────────────────────┘
                        │ safe
                        ▼
@@ -58,7 +63,7 @@ User Input
 | Agent orchestration | LangGraph (ReAct loop) |
 | Visual UI | Langflow |
 | Vector store / RAG | ChromaDB + nomic-embed-text |
-| Input guardrail | Llama Guard 3 |
+| Input guardrail | Regex pre-filter (S15) + Llama Guard 3 (S1–S14) |
 | PII redaction | Microsoft Presidio |
 | Authorization | Human-in-the-Loop (HITL) |
 
@@ -185,8 +190,31 @@ python agent.py --persona hr_assistant --rag on --guard on --hitl on
 |---|---|---|---|
 | `--persona` | `customer_service`, `hr_assistant`, `security_analyst`, `code_assistant` | none | Load an agent persona |
 | `--rag` | `on`, `off` | `off` | Enable RAG retrieval from `context_docs/` |
-| `--guard` | `on`, `off` | `off` | Enable Llama Guard 3 input filtering |
+| `--guard` | `on`, `off` | `off` | Enable regex pre-filter + Llama Guard 3 input filtering + Presidio output redaction |
 | `--hitl` | `on`, `off` | `off` | Enable Human-in-the-Loop authorization |
+
+---
+
+## Web UI (Optional)
+
+A browser-based chat interface is available alongside the CLI. It renders each pipeline layer
+(input guard, RAG retrieval, tool calls, HITL approval, output guard) as collapsible step cards
+in the browser. All CLI labs continue to work unchanged.
+
+```bash
+pip install chainlit          # one additional package
+
+chainlit run ui.py            # opens http://localhost:8000
+```
+
+Select a **Lab Mode** from the profile picker before your first message:
+
+| Lab Mode | Active layers | CLI equivalent |
+|---|---|---|
+| **Bare** | None — attack surface open | `python agent.py` |
+| **Guarded** | Llama Guard 3 · Presidio · HITL | `python agent.py --guard on --hitl on` |
+| **RAG Analyst** | RAG · Security Analyst persona | `python agent.py --persona security_analyst --rag on` |
+| **Full Defense** | RAG · Llama Guard 3 · Presidio · HITL | `python agent.py --persona hr_assistant --rag on --guard on --hitl on` |
 
 ---
 

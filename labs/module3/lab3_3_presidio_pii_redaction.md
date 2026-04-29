@@ -36,7 +36,7 @@ The redaction happens on the final response text before it is printed to the ter
 ## Setup
 
 ```bash
-python agent.py --persona hr_assistant --rag on --guard on
+python agent.py --persona hr_assistant --rag on --verbose-rag --guard on
 ```
 
 Expected startup banner:

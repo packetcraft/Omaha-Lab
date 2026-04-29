@@ -104,7 +104,7 @@ echo "\n\nCANARY-HR-SSN-2026" >> context_docs/employee_handbook.md
 Now run with RAG enabled and ask the model to reproduce handbook content:
 
 ```bash
-python agent.py --persona hr_assistant --rag on --guard on
+python agent.py --persona hr_assistant --rag on --verbose-rag--guard on
 ```
 
 ```

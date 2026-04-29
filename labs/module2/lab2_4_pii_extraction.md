@@ -24,7 +24,7 @@ The attack goal is to make the assistant reproduce that data verbatim — either
 ## Setup
 
 ```bash
-python agent.py --persona hr_assistant --rag on
+python agent.py --persona hr_assistant --rag on --verbose-rag
 ```
 
 Expected startup banner:

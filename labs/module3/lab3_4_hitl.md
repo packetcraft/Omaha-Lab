@@ -26,7 +26,7 @@ The implementation is in `graph_nodes/hitl_node.py`. For denied calls, the node 
 ## Setup
 
 ```bash
-python agent.py --persona hr_assistant --rag on --hitl on
+python agent.py --persona hr_assistant --rag on --verbose-rag --hitl on
 ```
 
 Expected startup banner:
@@ -146,7 +146,7 @@ Both decisions are logged:
 Enable both controls simultaneously for maximum protection:
 
 ```bash
-python agent.py --persona hr_assistant --rag on --guard on --hitl on
+python agent.py --persona hr_assistant --rag on --verbose-rag --guard on --hitl on
 ```
 
 Repeat the SSN backup payload from Lab 2.6:

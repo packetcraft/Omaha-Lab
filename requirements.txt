@@ -32,3 +32,6 @@ ddgs>=1.0
 
 # Utilities
 PyYAML>=6.0.2
+
+# Web UI (optional — CLI works without this)
+chainlit>=1.0

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Omaha-Lab CLI agent — entry point for all stages."""
+from __future__ import annotations
 import json
 import os
 import sys
@@ -49,6 +50,7 @@ LLAMA_GUARD_LABELS: dict[str, str] = {
     "S12": "Sexual Content",
     "S13": "Elections",
     "S14": "Code Interpreter Abuse",
+    "S15": "Prompt Injection",
 }
 
 
@@ -79,10 +81,11 @@ def _print_guard_receipt(signals: dict, guard_enabled: bool) -> None:
         return
 
     if signals.get("guard_input_blocked"):
-        cat   = signals.get("guard_category", "")
-        label = LLAMA_GUARD_LABELS.get(cat, cat) if cat else "policy violation"
+        cat    = signals.get("guard_category", "")
+        layer  = signals.get("guard_layer", "llama-guard3")
+        label  = LLAMA_GUARD_LABELS.get(cat, cat) if cat else "policy violation"
         cat_str = f" — {cat}: {label}" if cat else ""
-        print(f"{C.GRAY}[Guard] input: {C.RED}BLOCKED{C.GRAY} (llama-guard3{cat_str}){C.RESET}")
+        print(f"{C.GRAY}[Guard] input: {C.RED}BLOCKED{C.GRAY} ({layer}{cat_str}){C.RESET}")
         return
 
     parts: list[str] = []
@@ -159,6 +162,7 @@ def _print_event(event: dict, guard_enabled: bool = False, verbose_rag: bool = F
                     print(f"{C.RED}{msg.content}{C.RESET}\n")
                     signals["guard_input_blocked"] = True
                     signals["guard_category"]      = cat
+                    signals["guard_layer"]         = layer
 
                 elif node_name == "output_guard":
                     content = msg.content or ""
@@ -199,7 +203,7 @@ def run_repl(
     risk_display    = f" [{persona.risk_level}]" if persona else ""
     tool_names      = ", ".join(t.name for t in tools) if tools else "(none)"
     rag_display     = "on" if rag else "off"
-    guard_display   = "on (llama-guard3 + presidio + canary)" if guard else "off"
+    guard_display   = "on (regex-prefilter + llama-guard3 + presidio + canary)" if guard else "off"
     hitl_display    = "on (high-risk tool calls require approval)" if hitl else "off"
 
     print(f"\n{C.BOLD}Omaha-Lab Agent{C.RESET}  |  model: {C.CYAN}{model}{C.RESET}")

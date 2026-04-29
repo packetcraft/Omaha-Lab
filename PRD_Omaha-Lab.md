@@ -1,9 +1,9 @@
 # Product Requirements Document: Omaha-Lab (V4)
 
 **Subtitle:** A hands-on lab guide for local LLM security, agentic tool-calling, and OWASP mitigation.
-**Version:** 4.2
+**Version:** 4.3
 **Status:** Draft
-**Last Updated:** 2026-04-23
+**Last Updated:** 2026-04-29
 
 ---
 
@@ -29,6 +29,7 @@ The platform serves two primary audiences: security practitioners who want a rea
 - Agentic orchestration via LangGraph (ReAct loop with tool calling)
 - Live internet-connected tools: web search, weather API, REST endpoints
 - Visual flow design via Langflow
+- Optional browser chat UI via Chainlit (renders agent steps visually; wraps existing CLI agent)
 - Security guardrails: Llama Guard 3, Microsoft Presidio, canary token detection, HITL breakpoints
 - Swappable agent personas (system prompt templates)
 - RAG pipeline using local Markdown documents as context
@@ -37,7 +38,7 @@ The platform serves two primary audiences: security practitioners who want a rea
 ### 2.3 Out of Scope
 
 - Cloud-hosted inference (no OpenAI, Anthropic, or Bedrock endpoints)
-- Mobile or browser-native deployments
+- Cloud-hosted or mobile browser deployments (Chainlit UI runs on localhost only)
 - Production hardening or enterprise SSO integration
 
 ---
@@ -54,11 +55,13 @@ The platform serves two primary audiences: security practitioners who want a rea
 | Context / RAG | Document Store | Markdown files → ChromaDB (local vector store) |
 | Context / RAG | Embeddings | `nomic-embed-text` via Ollama (fully local) |
 | Tool Calling | External APIs | Weather API, Search API, custom Python tools |
-| Security | Input Guardrail | Llama Guard 3 |
+| Security | Input Guardrail (fast) | Regex pre-filter — keyword/pattern matching for prompt injection (S15) |
+| Security | Input Guardrail (LLM) | Llama Guard 3 — content safety classifier (S1–S14) |
 | Security | PII Redaction | Microsoft Presidio |
 | Security | Output Validation | Canary token detection, output schema enforcement |
 | Security | Authorization | Human-in-the-Loop (HITL) interrupt node |
-| Interface | Visual UI | Langflow with embeddable chat widget |
+| Interface | Visual Flow Builder | Langflow with embeddable chat widget |
+| Interface | Web Chat UI (optional) | Chainlit — chat-native, renders guardrail/tool/HITL steps as browser cards |
 
 ### 3.1 Minimum Hardware Requirements
 
@@ -136,6 +139,7 @@ omaha-lab/
 │   ├── search.py
 │   ├── http_request.py
 │   └── file_ops.py
+├── ui.py                       # Optional: Chainlit web chat UI (wraps agent.py pipeline)
 └── guardrails/                 # Llama Guard and Presidio configs
     ├── llama_guard_config.py
     └── presidio_config.py
@@ -216,7 +220,7 @@ The system must support retrieval-augmented generation using local Markdown file
 
 ### 6.4 Security & Guardrails
 
-- **Input Filtering:** All user inputs pre-processed by Llama Guard 3 before reaching the reasoning model. Flagged inputs are blocked and logged.
+- **Input Filtering:** User inputs pass through two sequential layers before reaching the reasoning model. First, a regex pre-filter checks for known prompt injection patterns (instruction overrides, role-play escapes, system prompt extraction attempts) and blocks matches instantly as category S15, with no LLM inference cost. Inputs that pass the regex are then evaluated by Llama Guard 3 against its standard S1–S14 content safety categories. Blocked inputs are logged to `logs/blocked_inputs.jsonl` with timestamp, category, and layer attribution.
 - **PII Redaction:** Microsoft Presidio scrubs names, emails, phone numbers, SSNs, and credit card patterns from both inputs and outputs in real time.
 - **Canary Token Detection:** Post-processing step checks model outputs for embedded tracking strings before delivery to the user.
 - **Output Schema Enforcement:** Structured tool call outputs validated against expected JSON schema before execution.
@@ -226,7 +230,8 @@ The system must support retrieval-augmented generation using local Markdown file
 
 | Requirement | Acceptance Threshold |
 |---|---|
-| Llama Guard blocks unsafe prompts | ≥ 90% detection on standard LLM01 attack corpus |
+| Regex pre-filter blocks explicit prompt injection | 100% detection of patterns in `_INJECTION_PATTERNS` (zero LLM cost) |
+| Llama Guard blocks unsafe content | ≥ 90% detection on standard S1–S14 content corpus |
 | Presidio PII redaction | 100% of seeded PII patterns removed before output |
 | HITL trigger rate | 100% of high-risk tool calls intercepted |
 | RAG retrieval relevance | Correct chunk retrieved in top-3 results for all lab queries |
@@ -240,7 +245,7 @@ The system must support retrieval-augmented generation using local Markdown file
 
 | # | Risk | Lab Feasibility | Offensive Exercise | Defensive Mitigation | Architecture Component |
 |---|---|---|---|---|---|
-| LLM01 | Prompt Injection | **High** | Direct injection via chat; indirect injection via poisoned tool response or RAG chunk | Llama Guard 3 input filter, system prompt hardening | Llama Guard 3, LangGraph system prompt |
+| LLM01 | Prompt Injection | **High** | Direct injection via chat; indirect injection via poisoned tool response or RAG chunk | Regex pre-filter (explicit overrides), Llama Guard 3 (content safety), system prompt hardening | Regex pre-filter, Llama Guard 3, LangGraph system prompt |
 | LLM02 | Sensitive Information Disclosure | **High** | Embed PII in prompts or RAG docs; extract via role-play or retrieval | Presidio PII redaction on inputs, outputs, and retrieved chunks | Microsoft Presidio |
 | LLM03 | Supply Chain Vulnerabilities | **Medium** | Discuss risks of pulling unverified Ollama models; inspect model provenance | Model verification checklist; known-good Modelfile hashes | Ollama model pull process (documented) |
 | LLM04 | Data and Model Poisoning | **Medium** | Override system prompt via adversarial few-shot examples in RAG context | Prompt structure isolation, guardrail on injected context | LangGraph system prompt, Llama Guard 3, RAG chunk filtering |
@@ -344,6 +349,7 @@ The system must support retrieval-augmented generation using local Markdown file
 | **Python Version** | Python 3.11 or higher. All dependencies pinned in `requirements.txt`. |
 | **Ollama Version** | Ollama 0.3.x or higher. Minimum version documented in README. |
 | **Langflow Version** | Langflow 1.x. Exported `.json` flows include the version they were built on. |
+| **Chainlit Version** | Chainlit 1.x. UI is optional; CLI path remains fully functional without it. |
 | **Execution Environment** | macOS 13+ (Apple Silicon preferred) or Windows 11 with Git Bash. Intel Mac and Windows ARM not formally tested. |
 | **API Keys** | Weather and search integrations require free-tier API keys. Keys stored in `.env` (gitignored). `.env.example` provided. |
 | **Performance** | Agent round-trip (prompt → retrieval → tool call → response) must complete in < 15 seconds on minimum hardware in CPU mode. |
@@ -425,9 +431,9 @@ Each stage is designed as a discrete, self-contained unit that can be handed to 
 
 ### Phase 6 — Security Guardrails
 
-**Stage 6: Input Guardrail (Llama Guard 3)**
+**Stage 6: Input Guardrail (Regex Pre-filter + Llama Guard 3)**
 
-> **Prompt a coding agent:** "Implement the Llama Guard 3 input filtering node for Omaha-Lab. Llama Guard 3 runs via Ollama (model: `llama-guard3`). Build `guardrails/llama_guard.py` with a `check_input(text: str) -> GuardResult` function that sends the text to Llama Guard 3 and returns: `safe` (bool), `category` (str or None), `raw_response` (str). Add this as the first node in the LangGraph graph — before retrieval and before the LLM. If `safe=False`, short-circuit the graph: return a blocked message to the user and log the attempt to `logs/blocked_inputs.jsonl` with timestamp, category, and truncated input. The guard must also be callable on RAG-retrieved chunks (same function, called in the retrieval node after fetch, before context injection). Add `--guard on/off` CLI flag (default off for Stage 6, so earlier stages still work)."
+> **Prompt a coding agent:** "Implement the two-layer input filtering node for Omaha-Lab. Build `guardrails/llama_guard.py` with a `check_input(text: str) -> GuardResult` method that first runs a regex pre-filter against known prompt injection patterns (instruction overrides, role-play escapes, system prompt extraction attempts) — returning category S15 on match with `raw_response='injection-prefilter'` and no LLM call. If the regex passes, forward the text to Llama Guard 3 via Ollama (model: `llama-guard3`) for S1–S14 content safety classification. `GuardResult` has fields: `safe` (bool), `category` (str or None), `raw_response` (str). Add this as the first node in the LangGraph graph — before retrieval and before the LLM. If `safe=False`, short-circuit the graph: return a blocked message to the user (with layer attribution — `regex-prefilter` or `llama-guard3`) and log the attempt to `logs/blocked_inputs.jsonl` with timestamp, category, and truncated input. The guard must also be callable on RAG-retrieved chunks (same function, called in the retrieval node after fetch, before context injection). Add `--guard on/off` CLI flag (default off for Stage 6, so earlier stages still work)."
 
 **Deliverables:** `guardrails/llama_guard.py`, `guardrails/guard_result.py`, updated `graph.py`, `logs/` directory with `.gitkeep`
 **Depends on:** Stage 5
@@ -481,6 +487,17 @@ Each stage is designed as a discrete, self-contained unit that can be handed to 
 
 ---
 
+### Phase 10 — Web UI (Optional)
+
+**Stage 12: Chainlit Web Chat UI**
+
+> **Prompt a coding agent:** See `PLAN_ui_chainlit.md` for full implementation brief and coding agent prompt.
+
+**Deliverables:** `ui.py`, updated `requirements.txt`, updated `README.md` (Web UI section)
+**Depends on:** Stage 11
+
+---
+
 ### Development Stage Summary
 
 ```
@@ -512,6 +529,9 @@ Phase 8: UI
 Phase 9: Content & Publish (can run Stages 10 & 11 in parallel)
   ├─ Stage 10: Lab Markdown Files
   └─ Stage 11: README + GitHub Publication Prep
+
+Phase 10: Web UI (optional, additive)
+  └─ Stage 12: Chainlit Web Chat UI
 ```
 
 ---
@@ -523,13 +543,15 @@ Phase 9: Content & Publish (can run Stages 10 & 11 in parallel)
 | **Ollama** | Open-source tool for running LLMs locally on consumer hardware |
 | **LangGraph** | Python library for building stateful, multi-step agentic workflows as directed graphs |
 | **Langflow** | Visual, low-code builder for LLM pipelines; exports flows as JSON |
+| **Chainlit** | Python framework for building chat UIs for LLM apps; renders agentic steps (tool calls, guardrail decisions, HITL prompts) as collapsible browser cards |
 | **ReAct Loop** | Reasoning + Action pattern: the model reasons about a goal, calls a tool, observes the result, and repeats |
 | **HITL** | Human-in-the-Loop: a mandatory pause in agent execution requiring a human to approve before a high-risk action proceeds |
 | **Persona** | A YAML-defined agent identity that sets the system prompt, allowed tools, and risk posture for a conversation |
 | **RAG** | Retrieval-Augmented Generation: enriching LLM context with chunks retrieved from a document store before generating a response |
 | **ChromaDB** | Open-source, locally-hosted vector database used to store and query document embeddings |
 | **nomic-embed-text** | A local embedding model available via Ollama used to convert text chunks into vectors for RAG |
-| **Llama Guard 3** | A fine-tuned classifier model from Meta that detects unsafe or policy-violating content in LLM inputs and outputs |
+| **Regex Pre-filter** | A fast, pattern-based input guard that matches known prompt injection signatures (instruction overrides, role-play escapes) before any LLM inference. Blocks as category S15 with zero model-inference cost. |
+| **Llama Guard 3** | A fine-tuned classifier model from Meta that detects unsafe or policy-violating content in LLM inputs and outputs across categories S1–S14. Does not natively detect prompt injection, which is why the regex pre-filter runs first. |
 | **Microsoft Presidio** | Open-source library for detecting and anonymizing PII (Personally Identifiable Information) in text |
 | **Canary Token** | A unique, trackable string embedded in data; its appearance in model output signals a data-leakage or injection event |
 | **PII** | Personally Identifiable Information — data that can identify a specific individual (name, SSN, email, etc.) |

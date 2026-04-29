@@ -1,3 +1,4 @@
+from __future__ import annotations
 import os
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_ollama import ChatOllama
@@ -22,9 +23,10 @@ def build_graph(
     tools: list | None = None,
     system_prompt: str | None = None,
     retriever=None,
-    guard=None,           # LlamaGuard instance; enables input filtering + RAG chunk scanning
-    presidio_guard=None,  # PresidioGuard instance; enables PII redaction on output
-    hitl: bool = False,   # Enable HITL authorization for high-risk tool calls
+    guard=None,                # LlamaGuard instance; enables input filtering + RAG chunk scanning
+    presidio_guard=None,       # PresidioGuard instance; enables PII redaction on output
+    hitl: bool = False,        # Enable HITL authorization for high-risk tool calls
+    hitl_node_factory=None,    # Optional override: callable() -> node fn (e.g. for Chainlit UI)
 ):
     model = model or os.getenv("OLLAMA_MODEL", "llama3.1:8b")
     base_url = base_url or os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
@@ -84,10 +86,15 @@ def build_graph(
             result = guard.check_input(last_human.content)
             if not result.safe:
                 guard.log_blocked(last_human.content, result)
+                layer = (
+                    "regex-prefilter"
+                    if result.raw_response == "injection-prefilter"
+                    else "llama-guard3"
+                )
                 blocked_msg = AIMessage(
                     content="I'm unable to respond to that request.",
                     additional_kwargs={
-                        "guard_layer":    "llama-guard3",
+                        "guard_layer":    layer,
                         "guard_category": result.category or "",
                     },
                 )
@@ -150,8 +157,9 @@ def build_graph(
         graph.add_edge("tools", "agent")
 
     if hitl and tools:
-        from graph_nodes.hitl_node import make_hitl_node
-        graph.add_node("hitl", make_hitl_node())
+        from graph_nodes.hitl_node import make_hitl_node as _default_hitl
+        _factory = hitl_node_factory if hitl_node_factory is not None else _default_hitl
+        graph.add_node("hitl", _factory())
         graph.add_conditional_edges("hitl", after_hitl)
 
     graph.add_conditional_edges("agent", should_continue)
