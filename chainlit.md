@@ -1,8 +1,10 @@
 # Omaha-Lab
 
-**A local-first sandbox for LLM security, agentic tool-calling, and OWASP mitigation.**
+**A hands-on lab guide for local LLM security, agentic tool-calling, and OWASP mitigation.**
 
-All inference runs on your hardware via Ollama — no cloud endpoints. The pipeline layers visible in the step cards (input guard, RAG, tool calls, HITL, output guard) are the same ones you attack and defend in the labs below.
+Omaha-Lab (Ollama + Mac/Windows + Human + Agent) is a local-first research and development environment for exploring autonomous agent reasoning and cybersecurity guardrails. All inference stays on your hardware — no cloud LLM endpoints.
+
+The pipeline layers visible in the step cards (input guard, RAG, tool calls, HITL, output guard) are the same ones you attack and defend in the labs below. The full pipeline flow diagram is documented in the [README](https://github.com/packetcraft/Omaha-Lab/blob/master/README.md).
 
 ---
 
