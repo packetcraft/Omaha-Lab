@@ -87,7 +87,7 @@ _PROFILE_DESC: dict[str, str] = {
 # ---------------------------------------------------------------------------
 
 @cl.set_chat_profiles
-async def chat_profiles():
+async def chat_profiles(current_user=None, current_chat_profile=None):
     return [
         cl.ChatProfile(name=name, markdown_description=_PROFILE_DESC[name])
         for name in _PROFILES
@@ -271,11 +271,11 @@ async def on_message(user_msg: cl.Message):
                     f"```json\n{json.dumps(args, indent=2)}\n```"
                 ),
                 actions=[
-                    cl.Action(name="approve", value="approved", label="Approve"),
-                    cl.Action(name="deny",    value="denied",   label="Deny"),
+                    cl.Action(name="approve", label="Approve", payload={"value": "approved"}),
+                    cl.Action(name="deny",    label="Deny",    payload={"value": "denied"}),
                 ],
             ).send()
-            approved = action is not None and action.value == "approved"
+            approved = action is not None and action.get("name") == "approve"
             hitl_res_q.put(approved)
             status = "Approved" if approved else "Denied"
             await cl.Message(content=f"HITL decision: **{status}**", author="System").send()
@@ -351,10 +351,10 @@ async def _handle_event(event: dict, use_guard: bool) -> str | None:
                 if msg.tool_calls:
                     if msg.content:
                         async with cl.Step(name="Reasoning", type="llm") as step:
-                            step.output = msg.content
+                            step.output = msg.content if isinstance(msg.content, str) else str(msg.content)
                     for tc in msg.tool_calls:
                         async with cl.Step(name=f"Tool call: {tc['name']}", type="tool") as step:
-                            step.input  = json.dumps(tc.get("args", {}), indent=2)
+                            step.input = json.dumps(tc.get("args", {}), indent=2)
 
                 elif node_name == "guard_input":
                     layer = msg.additional_kwargs.get("guard_layer", "guard")
@@ -383,6 +383,6 @@ async def _handle_event(event: dict, use_guard: bool) -> str | None:
             elif isinstance(msg, ToolMessage):
                 tool_name = getattr(msg, "name", "tool")
                 async with cl.Step(name=f"Tool result: {tool_name}", type="tool") as step:
-                    step.output = msg.content
+                    step.output = msg.content if isinstance(msg.content, str) else str(msg.content)
 
     return final_text
