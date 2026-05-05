@@ -114,12 +114,14 @@ ollama pull llama-guard3
 git clone https://github.com/omaha-lab/omaha-lab.git
 cd omaha-lab
 
-# 4. Create and activate virtual environment
+# 4. Create virtual environment
 python3.11 -m venv venv
-source venv/bin/activate
 
-# 5. Install dependencies
-pip install -r requirements.txt
+# 5. Install dependencies using the venv's pip directly (no activation needed).
+# This ensures the correct Python 3.11 wheel is fetched rather than a
+# cached wheel built for a different Python version on your PATH.
+venv/bin/pip install -r requirements.txt
+venv/bin/python -m spacy download en_core_web_lg
 
 # 6. Configure environment
 cp .env.example .env
@@ -146,12 +148,14 @@ ollama pull llama-guard3
 git clone https://github.com/omaha-lab/omaha-lab.git
 cd omaha-lab
 
-# 4. Create and activate virtual environment
+# 4. Create virtual environment
 py -3.11 -m venv venv
-source venv/Scripts/activate
 
-# 5. Install dependencies
-pip install -r requirements.txt
+# 5. Install dependencies using the venv's pip directly (no activation needed).
+# This ensures the correct Python 3.11 wheel is fetched rather than a
+# cached wheel built for a different Python version on your PATH.
+venv/Scripts/pip install -r requirements.txt
+venv/Scripts/python -m spacy download en_core_web_lg
 
 # 6. Configure environment
 cp .env.example .env
@@ -221,6 +225,8 @@ The sidebar gear icon exposes individual **Chat Settings** — Persona, Guard, R
 ---
 
 ## Lab Guide
+
+> **Before you begin:** Read [`FOUNDATIONS.md`](FOUNDATIONS.md) first. It establishes the CPU/OS/Harness mental model and the 5-stage agent evolution roadmap that every lab is built around. Each lab targets a specific architectural layer — knowing the map makes the attacks and defenses land.
 
 The lab guide is organized into three modules:
 
