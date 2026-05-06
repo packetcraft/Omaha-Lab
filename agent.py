@@ -201,6 +201,7 @@ def run_repl(
     guard: bool = False,
     hitl: bool = False,
     verbose_rag: bool = False,
+    observe_url: str | None = None,
 ) -> None:
     thread_id = str(uuid.uuid4())
     config    = {"configurable": {"thread_id": thread_id}}
@@ -211,6 +212,7 @@ def run_repl(
     rag_display     = "on" if rag else "off"
     guard_display   = "on (regex-prefilter + llama-guard3 + presidio + canary)" if guard else "off"
     hitl_display    = "on (high-risk tool calls require approval)" if hitl else "off"
+    observe_display = f"on  →  {observe_url}" if observe_url else "off"
 
     print(f"\n{C.BOLD}Omaha-Lab Agent{C.RESET}  |  model: {C.CYAN}{model}{C.RESET}")
     print(f"Persona:         {C.YELLOW}{persona_display}{risk_display}{C.RESET}")
@@ -218,6 +220,7 @@ def run_repl(
     print(f"RAG:             {rag_display}")
     print(f"Guard:           {guard_display}")
     print(f"HITL:            {hitl_display}")
+    print(f"Observe:         {observe_display}")
     print(f"{C.GRAY}{'─' * 50}{C.RESET}")
     print(f"Type {C.BOLD}'quit'{C.RESET} or {C.BOLD}'exit'{C.RESET} to stop.\n")
 
@@ -313,6 +316,25 @@ def _setup_rag(base_url: str) -> object:
     total = embedder.collection.count()
     print(f"  Collection: {total} chunks indexed.\n")
     return RagRetriever(embedder.collection, embedder.embedder)
+
+
+def _setup_phoenix() -> str:
+    """Start Phoenix in-process and wire LangChain/LangGraph instrumentation. Returns UI URL."""
+    try:
+        import phoenix as px
+        from phoenix.otel import register
+        from openinference.instrumentation.langchain import LangChainInstrumentor
+    except ImportError:
+        print("Error: Phoenix packages not installed.")
+        print("  pip install arize-phoenix openinference-instrumentation-langchain")
+        sys.exit(1)
+
+    session = px.launch_app()
+    tracer_provider = register(project_name="omaha-lab")
+    LangChainInstrumentor().instrument(tracer_provider=tracer_provider)
+    url = session.url if hasattr(session, "url") else "http://127.0.0.1:6006"
+    print(f"Phoenix: observability UI at {C.CYAN}{url}{C.RESET}\n")
+    return url
 
 
 def _setup_guard(base_url: str):
@@ -412,6 +434,12 @@ def main() -> None:
         help="Show individual [RETRIEVE] lines instead of the collapsed [RAG] summary",
     )
     parser.add_argument(
+        "--observe",
+        choices=["on", "off"],
+        default="off",
+        help="Enable Phoenix observability UI at localhost:6006  (default: off)",
+    )
+    parser.add_argument(
         "--list-personas",
         action="store_true",
         help="List available persona names and exit",
@@ -433,6 +461,8 @@ def main() -> None:
             print(f"Error loading persona: {exc}")
             sys.exit(1)
         _log_persona_selection(args.persona, persona.name)
+
+    observe_url = _setup_phoenix() if args.observe == "on" else None
 
     _check_ollama(args.base_url, args.model)
 
@@ -467,6 +497,7 @@ def main() -> None:
         guard=(args.guard == "on"),
         hitl=(args.hitl == "on"),
         verbose_rag=args.verbose_rag,
+        observe_url=observe_url,
     )
 
 

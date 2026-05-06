@@ -63,6 +63,7 @@ The platform serves two primary audiences: security practitioners who want a rea
 | Security | Authorization | Human-in-the-Loop (HITL) interrupt node |
 | Interface | Visual Flow Builder | Langflow with embeddable chat widget |
 | Interface | Web Chat UI (optional) | Chainlit — chat-native, renders guardrail/tool/HITL steps as browser cards |
+| Observability | Pipeline Trace Viewer (optional) | Arize Phoenix — local OpenTelemetry span tree; captures input/output at every LangGraph node; toggled via `--observe on` |
 
 ### 3.1 Minimum Hardware Requirements
 
@@ -105,6 +106,7 @@ The workbench must provide parity across both macOS and Windows environments.
 ```
 omaha-lab/
 ├── README.md                   # Setup guide (macOS + Windows)
+├── FOUNDATIONS.md              # Conceptual framework: LLM architecture analogy + 5-stage evolution roadmap
 ├── LICENSE                     # MIT License
 ├── requirements.txt            # Pinned Python dependencies
 ├── pyproject.toml              # Optional: modern dependency spec
@@ -263,6 +265,8 @@ The system must support retrieval-augmented generation using local Markdown file
 
 **Title:** *Intro to LLM and LLM Security*
 
+**Prerequisite reading:** [`FOUNDATIONS.md`](FOUNDATIONS.md) — establishes the CPU/OS/Harness architectural analogy and the 5-stage agent evolution roadmap. All three modules assume this mental model. Learners should read it before Lab 1.1.
+
 ### Module 1: Foundations
 
 **Goal:** Get the environment running and understand how agents reason, use tools, adopt personas, and retrieve context.
@@ -273,6 +277,7 @@ The system must support retrieval-augmented generation using local Markdown file
 - Load a persona and observe how the system prompt changes agent behavior
 - Enable RAG and see how retrieved Markdown context influences responses
 - Understand the full flow: user input → guardrail → retrieval → persona → model → tool → output
+- Use Phoenix to see the raw input/output data flowing through every pipeline node
 
 **Labs:**
 - Lab 1.1 — Environment Setup (macOS or Windows)
@@ -280,6 +285,7 @@ The system must support retrieval-augmented generation using local Markdown file
 - Lab 1.3 — Reading the ReAct Trace
 - Lab 1.4 — Loading a Persona (Customer Service Bot)
 - Lab 1.5 — Enabling RAG with a Markdown Context Document
+- Lab 1.6 — Visualizing the Agent Pipeline with Phoenix
 
 ---
 
@@ -351,6 +357,7 @@ The system must support retrieval-augmented generation using local Markdown file
 | **Ollama Version** | Ollama 0.3.x or higher. Minimum version documented in README. |
 | **Langflow Version** | Langflow 1.x. Exported `.json` flows include the version they were built on. |
 | **Chainlit Version** | Chainlit 1.x. UI is optional; CLI path remains fully functional without it. |
+| **Phoenix Version** | Arize Phoenix 15.x. Observability is optional; all labs function without it. Phoenix runs fully locally — no data is transmitted to Arize cloud. Toggled via `--observe on/off` (default off). |
 | **Execution Environment** | macOS 13+ (Apple Silicon preferred) or Windows 11 with Git Bash. Intel Mac and Windows ARM not formally tested. |
 | **API Keys** | Weather and search integrations require free-tier API keys. Keys stored in `.env` (gitignored). `.env.example` provided. |
 | **Performance** | Agent round-trip (prompt → retrieval → tool call → response) must complete in < 15 seconds on minimum hardware in CPU mode. |
@@ -538,6 +545,28 @@ Chat Settings widgets (sidebar gear): **Persona** (Select), **Guard** (Switch), 
 
 ---
 
+### Phase 12 — Observability (optional, additive)
+
+**Stage 14: Phoenix Pipeline Trace Viewer**
+
+> **What was built:** Students following the CLI trace (`[REASON]`, `[ACT]`, `[OBSERVE]`, `[RESPOND]`) can see the flow but not the raw data at each node. Phoenix adds a local OpenTelemetry span tree that captures the exact input and output of every LangGraph node — giving students two complementary views: flow topology (CLI) and data trace (Phoenix UI).
+
+**Implementation:**
+- `arize-phoenix`, `arize-phoenix-otel`, `openinference-instrumentation-langchain`, and supporting OTel packages added to the optional section of `requirements.txt` at exact pinned versions.
+- `_setup_phoenix()` helper added to `agent.py`: calls `px.launch_app()` to start Phoenix in-process, registers an OTel `TracerProvider` via `phoenix.otel.register(project_name="omaha-lab")`, and instruments all LangChain/LangGraph calls with `LangChainInstrumentor().instrument()`. Returns the UI URL.
+- `--observe on/off` CLI flag added to `agent.py` (default `off`). When `on`, `_setup_phoenix()` is called before Ollama startup and the returned URL is shown in the startup banner (`Observe: on → http://127.0.0.1:6006`).
+- No changes to `graph.py` — `LangChainInstrumentor` auto-instruments all downstream LangChain calls.
+- Phoenix stores traces locally in `~/.phoenix/` (SQLite). No data is transmitted to Arize cloud.
+
+**Known dependency note:** Phoenix pulls in several `opentelemetry-instrumentation-*` packages at version `0.62b1` (urllib3, redis, requests, etc.) that conflict with `opentelemetry-semantic-conventions 0.60b1` already present in the environment. Pip reports these as warnings during install. They do not affect the LangGraph tracing path and can be safely ignored. Documented in `requirements.txt` and `labs/module1/lab1_6_visualizing_the_pipeline.md`.
+
+**Lab added:** `labs/module1/lab1_6_visualizing_the_pipeline.md` — 8-step walkthrough covering install verification, running with `--observe on`, reading span data for a tool-call trace, a blocked guard trace, and a RAG retrieval trace. Includes a comparison table of what Phoenix shows vs. what the `logs/` JSONL files cover.
+
+**Deliverables:** Updated `requirements.txt`, updated `agent.py` (`_setup_phoenix`, `--observe` flag, banner line), `labs/module1/lab1_6_visualizing_the_pipeline.md`, updated `README.md` (CLI flags table)
+**Depends on:** Stage 13
+
+---
+
 ### Development Stage Summary
 
 ```
@@ -575,11 +604,20 @@ Phase 10: Web UI (optional, additive)
 
 Phase 11: Reasoning Architecture (additive, no breaking changes)
   └─ Stage 13: Dedicated Reason Node
+
+Phase 12: Observability (optional, additive)
+  └─ Stage 14: Phoenix Pipeline Trace Viewer
 ```
 
 ---
 
-## 12. Glossary
+## 12. Tooling Decisions
+
+Architectural and tooling alternatives that were evaluated but not adopted — including the reasoning behind each choice — are documented in [`DECISIONS.md`](DECISIONS.md). Refer to that file when a tooling question arises (e.g., "why not n8n?", "why not LangGraph Studio for visualization?") rather than re-litigating decisions in issues or PRs.
+
+---
+
+## 13. Glossary
 
 | Term | Definition |
 |---|---|

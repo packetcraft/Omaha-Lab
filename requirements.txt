@@ -37,3 +37,17 @@ PyYAML==6.0.3
 
 # Web UI (optional — CLI works without this)
 chainlit==2.11.1
+
+# Observability (optional — required for --observe on)
+# NOTE: pip may warn about opentelemetry-semantic-conventions version conflicts.
+# These warnings come from transitive deps inside arize-phoenix and do not affect
+# the LangGraph tracing path. Safe to ignore.
+arize-phoenix==15.4.0
+arize-phoenix-otel==0.16.1
+openinference-instrumentation==0.1.48
+openinference-instrumentation-langchain==0.1.63
+openinference-semantic-conventions==0.1.29
+opentelemetry-api==1.39.1
+opentelemetry-sdk==1.39.1
+opentelemetry-exporter-otlp-proto-http==1.39.1
+opentelemetry-proto==1.39.1

@@ -126,7 +126,7 @@ cd omaha-lab
 ### macOS
 
 ```bash
-python3.12 -m venv venv    # or python3.11 / python3.13
+python3.11 -m venv venv    # or python3.12 / python3.13
 source venv/bin/activate
 ```
 
@@ -141,7 +141,7 @@ py --list
 Create the venv with a supported version:
 
 ```bash
-py -3.12 -m venv venv      # or py -3.11 / py -3.13
+py -3.11 -m venv venv      # or py -3.12 / py -3.13
 source venv/Scripts/activate
 ```
 
@@ -151,7 +151,7 @@ Verify the right version is active before installing:
 python --version   # must show 3.11.x, 3.12.x, or 3.13.x
 ```
 
-> If Python 3.12 (or 3.11/3.13) is not listed by `py --list`, download the installer
+> If Python 3.11 (or 3.12/3.13) is not listed by `py --list`, download the installer
 > from [python.org/downloads](https://www.python.org/downloads/) before continuing.
 
 Your prompt should now show `(venv)` as a prefix. **All remaining lab commands assume the virtual environment is active.** If you open a new terminal, re-run the activation command above before continuing.
@@ -160,16 +160,55 @@ Your prompt should now show `(venv)` as a prefix. **All remaining lab commands a
 
 ## Step 5: Install Python Dependencies
 
+This installs all pinned dependencies: LangGraph, LangChain, ChromaDB, Presidio, Ollama client, Chainlit (web UI), and Arize Phoenix (observability). The install takes 3–6 minutes.
+
+### macOS
+
 ```bash
-pip install -r requirements.txt
+venv/bin/pip install -r requirements.txt
 ```
 
-This installs all pinned dependencies including LangGraph, LangChain, ChromaDB, Presidio, and the Ollama Python client. The install takes 2–5 minutes.
-
-Verify key packages:
+### Windows (Git Bash)
 
 ```bash
-pip show langgraph langchain-ollama chromadb | grep -E "^(Name|Version)"
+venv/Scripts/pip install -r requirements.txt
+```
+
+> **Expected warning during install:** You will see lines like:
+> ```
+> opentelemetry-instrumentation-urllib3 0.62b1 requires
+>   opentelemetry-semantic-conventions==0.62b1, but you have 0.60b1
+> ```
+> This is a known version conflict between transitive dependencies inside the Phoenix package. It does not affect any lab functionality. The install completes successfully despite the warning.
+
+After `pip install` completes, download the spaCy language model required by Presidio:
+
+### macOS
+
+```bash
+venv/bin/python -m spacy download en_core_web_lg
+```
+
+### Windows (Git Bash)
+
+```bash
+venv/Scripts/python -m spacy download en_core_web_lg
+```
+
+This downloads a ~560 MB English NLP model. It is only needed once and is not re-downloaded on subsequent installs.
+
+Verify key packages installed correctly:
+
+### macOS
+
+```bash
+venv/bin/pip show langgraph langchain-ollama chromadb arize-phoenix | grep -E "^(Name|Version)"
+```
+
+### Windows (Git Bash)
+
+```bash
+venv/Scripts/pip show langgraph langchain-ollama chromadb arize-phoenix | grep -E "^(Name|Version)"
 ```
 
 ---
@@ -254,7 +293,7 @@ Expected output:
 ```
 usage: agent.py [-h] [--model MODEL] [--base-url BASE_URL] [--persona NAME]
                 [--rag {on,off}] [--guard {on,off}] [--hitl {on,off}]
-                [--verbose-rag] [--list-personas]
+                [--observe {on,off}] [--verbose-rag] [--list-personas]
 
 Omaha-Lab ReAct agent — local LLM security sandbox
 ...
@@ -273,7 +312,7 @@ If you see this output, your environment is ready. Proceed to **Lab 1.2**.
 | `Warning: model 'qwen2.5:1.5b' not found` | Model not yet pulled | Run `ollama pull qwen2.5:1.5b` |
 | `pip install` fails on `presidio-*` | Missing build tools | Install `build-essential` (Linux) or Xcode CLI tools (macOS) |
 | Slow responses (>60s per turn) | CPU inference on a large model | Ensure `OLLAMA_MODEL=qwen2.5:1.5b` in `.env`; 1.5b is the intended default |
-| `pydantic-core` build fails with "version (3.14) is newer than PyO3's maximum" | venv created with Python 3.14 | Recreate venv: `rm -rf venv && py -3.12 -m venv venv` |
+| `pydantic-core` build fails with "version (3.14) is newer than PyO3's maximum" | venv created with Python 3.14 | Recreate venv: `rm -rf venv && py -3.11 -m venv venv` |
 
 ---
 
