@@ -62,7 +62,7 @@ The platform serves two primary audiences: security practitioners who want a rea
 | Security | Output Validation | Canary token detection, output schema enforcement |
 | Security | Authorization | Human-in-the-Loop (HITL) interrupt node |
 | Interface | Visual Flow Builder | Langflow with embeddable chat widget |
-| Interface | Web Chat UI (optional) | Chainlit — chat-native, renders guardrail/tool/HITL steps as browser cards |
+| Interface | Web Chat UI (optional) | Chainlit — chat-native, renders guardrail/tool/HITL steps as browser cards; includes colour-coded Mermaid pipeline diagram (topology at session start + per-turn path highlight) |
 | Observability | Pipeline Trace Viewer (optional) | Arize Phoenix — local OpenTelemetry span tree; captures input/output at every LangGraph node; toggled via `--observe on` |
 
 ### 3.1 Minimum Hardware Requirements
@@ -278,6 +278,7 @@ The system must support retrieval-augmented generation using local Markdown file
 - Enable RAG and see how retrieved Markdown context influences responses
 - Understand the full flow: user input → guardrail → retrieval → persona → model → tool → output
 - Use Phoenix to see the raw input/output data flowing through every pipeline node
+- Use the Chainlit Mermaid diagram to read pipeline topology and per-turn execution path at a glance
 
 **Labs:**
 - Lab 1.1 — Environment Setup (macOS or Windows)
@@ -286,6 +287,7 @@ The system must support retrieval-augmented generation using local Markdown file
 - Lab 1.4 — Loading a Persona (Customer Service Bot)
 - Lab 1.5 — Enabling RAG with a Markdown Context Document
 - Lab 1.6 — Visualizing the Agent Pipeline with Phoenix
+- Lab 1.7 — Reading the Pipeline Diagram in Chainlit
 
 ---
 
@@ -565,6 +567,26 @@ Chat Settings widgets (sidebar gear): **Persona** (Select), **Guard** (Switch), 
 
 **Deliverables:** Updated `requirements.txt`, updated `agent.py` (`_setup_phoenix`, `--observe` flag, banner line), `labs/module1/lab1_6_visualizing_the_pipeline.md`, updated `README.md` (CLI flags table)
 **Depends on:** Stage 13
+
+---
+
+### Phase 13 — Chainlit Pipeline Diagram (optional, additive)
+
+**Stage 15: Mermaid Pipeline Diagram in Chainlit UI**
+
+> **What was built:** The Chainlit web UI now renders a colour-coded Mermaid `graph LR` flowchart at two moments: (1) at session start, showing the configured pipeline topology (all nodes blue); (2) after every turn, as a collapsible "Pipeline path" step showing which nodes actually fired (green = fired, blue = configured but idle, red = guard blocked with short-circuit path). This is Option D from DECISIONS.md D-02 — complementary to Phoenix (Option A) at a different level of abstraction: topology and path, not raw data.
+
+**Implementation:**
+- `_pipeline_mermaid(use_rag, use_guard, use_hitl, fired, guard_blocked)` added to `ui.py`: generates a Mermaid `graph LR` string. Declares only nodes relevant to the current path (guard-blocked traces omit downstream nodes cleanly). Uses `classDef` for colour coding.
+- `_build_session()`: added `"use_rag"` to returned session dict (was missing, required for diagram generation).
+- `_init_session()`: sends a static topology `cl.Message` after the "Ready" confirmation.
+- `on_message()`: accumulates `fired_nodes` set and `guard_blocked` flag from raw LangGraph events each turn; sends `_pipeline_mermaid()` output as a collapsible `cl.Step` after the agent response. No changes to `_handle_event()`.
+- No new dependencies — Chainlit renders Mermaid natively in markdown.
+
+**Lab added:** `labs/module1/lab1_7_chainlit_pipeline_diagram.md` — introduces Chainlit as a distinct interface from the CLI; walks students through reading the topology card, the per-turn path step, and how the diagram changes across the four lab profiles and a blocked guard input.
+
+**Deliverables:** Updated `ui.py`, `labs/module1/lab1_7_chainlit_pipeline_diagram.md`, updated `README.md` (Web UI section), updated `PRD_Omaha-Lab.md`
+**Depends on:** Stage 12 (Chainlit web UI)
 
 ---
 
