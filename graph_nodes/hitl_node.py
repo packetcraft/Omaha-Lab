@@ -6,7 +6,7 @@ from langchain_core.messages import AIMessage, ToolMessage
 
 from tools.risk_registry import RISK_LEVEL
 
-_LOG_PATH = Path(__file__).parent.parent / "logs" / "hitl_log.jsonl"
+_LOG_PATH = Path(__file__).parent.parent / "workspace" / "logs" / "hitl_log.jsonl"
 
 
 def _log_decision(tool_name: str, args: dict, decision: str) -> None:

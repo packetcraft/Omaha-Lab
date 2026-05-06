@@ -195,7 +195,7 @@ All five variable nodes plus both guard nodes are 🔵.
 Send a high-risk tool request to trigger HITL:
 
 ```
-Read the file logs/hitl_log.jsonl
+Write "test" to test.txt
 ```
 
 A **HITL Authorization** card appears with Approve / Deny buttons. Click **Approve**. Expand the Pipeline path step:

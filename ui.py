@@ -308,6 +308,11 @@ async def on_message(user_msg: cl.Message):
 
         final_text = await _handle_event(payload, use_guard) or final_text
 
+    # HITL returns {} for low-risk pass-throughs so LangGraph emits no stream event.
+    # If tools ran, HITL must have executed (it's the only route to the tools node).
+    if use_hitl and "tools" in fired_nodes:
+        fired_nodes.add("hitl")
+
     # Per-turn pipeline path diagram
     diagram = _pipeline_mermaid(use_rag, use_guard, use_hitl, fired=fired_nodes, guard_blocked=guard_blocked)
     async with cl.Step(name="Pipeline path", type="tool") as step:
@@ -335,6 +340,7 @@ def _pipeline_mermaid(
         🔵  configured but did not fire
         🔴  guard blocked the input
     """
+    is_topology = fired is None
     fired = fired or set()
 
     def badge(key: str, label: str) -> str:
@@ -348,6 +354,35 @@ def _pipeline_mermaid(
             "_🟢 fired  ·  🔵 configured  ·  🔴 blocked_"
         )
 
+    if is_topology:
+        # Branching diagram in a code block so alignment is preserved
+        main_parts = ["Input"]
+        if use_guard:
+            main_parts.append("Input Guard")
+        if use_rag:
+            main_parts.append("RAG")
+        main_parts.append("Reason")
+        main_parts.append("Agent")
+        main_line = " → ".join(main_parts)
+
+        # Indent branch lines so they start under "Agent"
+        indent = " " * (len(main_line) - len("Agent"))
+
+        tool_parts = []
+        if use_hitl:
+            tool_parts.append("HITL")
+        tool_parts.append("Tools")
+        tool_line = indent + "Agent ──[tool call]──→ " + " → ".join(tool_parts)
+
+        done_parts = []
+        if use_guard:
+            done_parts.append("Output Guard")
+        done_parts.append("Response")
+        done_line = indent + "Agent ──[done]──→ " + " → ".join(done_parts)
+
+        return f"```\n{main_line}\n{tool_line}\n{done_line}\n```"
+
+    # Per-turn path: flat chain showing what actually fired vs what was configured
     chain = ["Input"]
     if use_guard:
         chain.append(badge("guard_input", "Input Guard"))
@@ -362,10 +397,7 @@ def _pipeline_mermaid(
         chain.append(badge("output_guard", "Output Guard"))
     chain.append("Response")
 
-    return (
-        " → ".join(chain) + "\n\n"
-        "_🟢 fired  ·  🔵 configured_"
-    )
+    return " → ".join(chain) + "\n\n_🟢 fired  ·  🔵 configured_"
 
 
 # ---------------------------------------------------------------------------

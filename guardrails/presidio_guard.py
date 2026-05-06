@@ -12,7 +12,6 @@ _ENTITIES = [
     "US_SSN",
     "CREDIT_CARD",
     "IP_ADDRESS",
-    "LOCATION",
 ]
 
 
