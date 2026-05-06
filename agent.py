@@ -319,9 +319,12 @@ def _setup_rag(base_url: str) -> object:
 
 
 def _setup_phoenix() -> str:
-    """Start Phoenix in-process and wire LangChain/LangGraph instrumentation. Returns UI URL."""
+    """Connect to a running Phoenix server and wire LangChain/LangGraph instrumentation.
+
+    Phoenix must be started separately so traces persist across agent sessions:
+        python -m phoenix.server.main serve
+    """
     try:
-        import phoenix as px
         from phoenix.otel import register
         from openinference.instrumentation.langchain import LangChainInstrumentor
     except ImportError:
@@ -329,11 +332,20 @@ def _setup_phoenix() -> str:
         print("  pip install arize-phoenix openinference-instrumentation-langchain")
         sys.exit(1)
 
-    session = px.launch_app()
+    import requests as _req
+    url = "http://127.0.0.1:6006"
+    try:
+        _req.get(url, timeout=2)
+    except Exception:
+        print(f"{C.RED}Error: Phoenix server not reachable at {url}{C.RESET}")
+        print("  Start it in a dedicated terminal and leave it running:")
+        print(f"    {C.CYAN}python -m phoenix.server.main serve{C.RESET}")
+        print("  Then re-run your agent command.")
+        sys.exit(1)
+
     tracer_provider = register(project_name="omaha-lab")
     LangChainInstrumentor().instrument(tracer_provider=tracer_provider)
-    url = session.url if hasattr(session, "url") else "http://127.0.0.1:6006"
-    print(f"Phoenix: observability UI at {C.CYAN}{url}{C.RESET}\n")
+    print(f"Phoenix: traces → {C.CYAN}{url}{C.RESET}\n")
     return url
 
 

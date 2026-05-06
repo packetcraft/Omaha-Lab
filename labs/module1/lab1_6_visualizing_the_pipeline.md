@@ -4,6 +4,12 @@
 **Estimated time:** 25 minutes
 **Prerequisite:** [Lab 1.5](lab1_5_rag.md) completed. All packages in `requirements.txt` installed.
 
+> **This lab uses two terminals.** Activate the virtual environment in each one before running any commands:
+> ```bash
+> source venv/bin/activate        # macOS
+> source venv/Scripts/activate    # Windows (Git Bash)
+> ```
+
 ---
 
 ## Objective
@@ -59,10 +65,11 @@ This is the data flow you will see in Phoenix after completing this lab.
 
 ## Step 1: Install the Packages
 
-The Phoenix packages are already in `requirements.txt`. If you ran `pip install -r requirements.txt` during setup, they are already installed. Verify:
+The Phoenix packages are already in `requirements.txt`. If you ran `pip install -r requirements.txt` during Lab 1.1, they are already installed. Verify:
 
 ```bash
-pip show arize-phoenix
+venv/Scripts/pip show arize-phoenix    # Windows
+venv/bin/pip show arize-phoenix        # macOS
 ```
 
 Expected output:
@@ -73,34 +80,61 @@ Version: 15.4.0
 ...
 ```
 
-If the package is missing, install it now:
-
-```bash
-pip install -r requirements.txt
-```
-
-> **About the version conflict warning:** During install, pip may print warnings like:
-> ```
-> opentelemetry-instrumentation-urllib3 0.62b1 requires
->   opentelemetry-semantic-conventions==0.62b1, but you have 0.60b1
-> ```
-> These come from transitive dependencies inside Phoenix that are not on our import path.
-> They do not affect LangGraph tracing. You can safely ignore them.
+If missing, re-run `pip install -r requirements.txt` as in Lab 1.1 Step 5.
 
 ---
 
-## Step 2: Run the Agent with `--observe on`
+## Step 2: Start the Phoenix Server (once — keep it running)
 
-Start the agent in its simplest form first — no persona, no RAG, no guard. This gives you the cleanest possible trace to read:
+Phoenix must run as a **separate, persistent server** so that traces from every agent session accumulate in one place. Open a dedicated terminal, activate the venv, and start it:
+
+### Windows (Git Bash)
+
+```bash
+venv/Scripts/python -m phoenix.server.main serve
+```
+
+### macOS
+
+```bash
+venv/bin/python -m phoenix.server.main serve
+```
+
+Expected output:
+
+```
+Starting Phoenix server...
+Phoenix UI available at: http://127.0.0.1:6006
+```
+
+> **Leave this terminal open for the entire lab.** Phoenix stores all traces in a local SQLite database at `~/.phoenix/`. As long as this process is running, traces from every `python agent.py --observe on` session will persist and accumulate — even after agent.py exits and restarts.
+
+---
+
+## Step 3: Open Phoenix in Your Browser
+
+In a browser, navigate to:
+
+```
+http://127.0.0.1:6006
+```
+
+You will see the Phoenix home screen with a project named **omaha-lab** and no traces yet. Keep this tab open alongside your terminals.
+
+---
+
+## Step 4: Run the Agent with `--observe on`
+
+Open a second terminal (your agent terminal), activate the venv, and start the agent in its simplest form first — no persona, no RAG, no guard:
 
 ```bash
 python agent.py --observe on
 ```
 
-Phoenix starts in-process and prints its URL before the agent banner:
+Because Phoenix is already running, agent.py connects to it and prints:
 
 ```
-Phoenix: observability UI at http://127.0.0.1:6006
+Phoenix: traces → http://127.0.0.1:6006
 
 Omaha-Lab Agent  |  model: qwen2.5:1.5b
 Persona:         (none)
@@ -113,23 +147,11 @@ Observe:         on  →  http://127.0.0.1:6006
 Type 'quit' or 'exit' to stop.
 ```
 
-> **Note:** The first startup takes a few extra seconds as Phoenix initialises its local SQLite database at `~/.phoenix/`.
+> **If you see** `Error: Phoenix server not reachable at http://127.0.0.1:6006` — Phoenix is not running. Go back to Step 2 and start it first.
 
 ---
 
-## Step 3: Open Phoenix in Your Browser
-
-Open a second browser tab and navigate to:
-
-```
-http://127.0.0.1:6006
-```
-
-You will see the Phoenix home screen with a project named **omaha-lab** and no traces yet. Keep this tab open alongside your terminal.
-
----
-
-## Step 4: Send a Message and Read the Trace
+## Step 5: Send a Message and Read the Trace
 
 In the terminal, ask the agent a question that requires a tool call:
 
@@ -168,7 +190,7 @@ The trace tree opens on the right. Each row is a span. Click any span to expand 
 
 ---
 
-## Step 5: Trace a Blocked Guard Input
+## Step 6: Trace a Blocked Guard Input
 
 Restart the agent with the guard enabled:
 
@@ -196,7 +218,7 @@ Click the `guard_input` span and look at its output: `guard_blocked=True`, `guar
 
 ---
 
-## Step 6: Trace a Full RAG Turn
+## Step 7: Trace a Full RAG Turn
 
 Exit and restart with RAG enabled:
 
@@ -218,19 +240,19 @@ This is the same data the CLI shows in the `[RETRIEVE]` lines, but here you can 
 
 ---
 
-## Step 7: Compare Traces Side by Side
+## Step 8: Compare Traces Side by Side
 
 Phoenix keeps every trace in its history. Use the traces list on the left panel to click between:
 
-1. The simple weather query (Step 4) — short, 4 spans
-2. The blocked injection (Step 5) — 1 span, guard terminates it
-3. The RAG query (Step 6) — includes ChromaDB retrieval span
+1. The simple weather query (Step 5) — short, 4 spans
+2. The blocked injection (Step 6) — 1 span, guard terminates it
+3. The RAG query (Step 7) — includes ChromaDB retrieval span
 
 Notice how the span count, total duration, and token usage change with each configuration. This is what the `[Guard]`, `[RETRIEVE]`, and timing output in the CLI maps to — Phoenix just lets you explore the underlying data at each node.
 
 ---
 
-## Step 8: Understand What Phoenix Does Not Show
+## Step 9: Understand What Phoenix Does Not Show
 
 Phoenix captures everything LangChain/LangGraph emits via OpenTelemetry. It does **not** capture:
 
@@ -251,7 +273,7 @@ For complete observability of the security layer, use Phoenix traces alongside t
 
 ## Discussion Questions
 
-1. In Step 5, the guard span shows `guard_layer=regex-prefilter`. What would be different in the trace if the input had passed the regex but been blocked by Llama Guard 3 instead?
+1. In Step 6, the guard span shows `guard_layer=regex-prefilter`. What would be different in the trace if the input had passed the regex but been blocked by Llama Guard 3 instead?
 
 2. The reasoning span shows the model's raw pre-tool thought. In a production system, would you want this reasoning stored in an observability platform? What are the privacy implications?
 

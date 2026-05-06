@@ -196,7 +196,7 @@ python agent.py --persona hr_assistant --rag on --guard on --hitl on
 | `--rag` | `on`, `off` | `off` | Enable RAG retrieval from `context_docs/` |
 | `--guard` | `on`, `off` | `off` | Enable regex pre-filter + Llama Guard 3 input filtering + Presidio output redaction |
 | `--hitl` | `on`, `off` | `off` | Enable Human-in-the-Loop authorization |
-| `--observe` | `on`, `off` | `off` | Launch Phoenix observability UI at `http://127.0.0.1:6006` — live span trace of every pipeline node (see [Lab 1.6](labs/module1/lab1_6_visualizing_the_pipeline.md)) |
+| `--observe` | `on`, `off` | `off` | Connect to a running Phoenix server at `http://127.0.0.1:6006` and send live span traces of every pipeline node. Start Phoenix first: `python -m phoenix.server.main serve` (see [Lab 1.6](labs/module1/lab1_6_visualizing_the_pipeline.md)) |
 
 ---
 

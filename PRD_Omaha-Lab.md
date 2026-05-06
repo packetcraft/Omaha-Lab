@@ -553,14 +553,15 @@ Chat Settings widgets (sidebar gear): **Persona** (Select), **Guard** (Switch), 
 
 **Implementation:**
 - `arize-phoenix`, `arize-phoenix-otel`, `openinference-instrumentation-langchain`, and supporting OTel packages added to the optional section of `requirements.txt` at exact pinned versions.
-- `_setup_phoenix()` helper added to `agent.py`: calls `px.launch_app()` to start Phoenix in-process, registers an OTel `TracerProvider` via `phoenix.otel.register(project_name="omaha-lab")`, and instruments all LangChain/LangGraph calls with `LangChainInstrumentor().instrument()`. Returns the UI URL.
+- `_setup_phoenix()` helper added to `agent.py`: checks that a Phoenix server is reachable at `http://127.0.0.1:6006` (exits with a clear fix instruction if not), registers an OTel `TracerProvider` via `phoenix.otel.register(project_name="omaha-lab")`, and instruments all LangChain/LangGraph calls with `LangChainInstrumentor().instrument()`. Returns the UI URL.
 - `--observe on/off` CLI flag added to `agent.py` (default `off`). When `on`, `_setup_phoenix()` is called before Ollama startup and the returned URL is shown in the startup banner (`Observe: on → http://127.0.0.1:6006`).
+- Phoenix must be started as a **separate persistent server** before running agent.py: `python -m phoenix.server.main serve`. This keeps traces from all agent sessions — traces are not lost when agent.py exits and restarts.
 - No changes to `graph.py` — `LangChainInstrumentor` auto-instruments all downstream LangChain calls.
 - Phoenix stores traces locally in `~/.phoenix/` (SQLite). No data is transmitted to Arize cloud.
 
 **Known dependency note:** Phoenix pulls in several `opentelemetry-instrumentation-*` packages at version `0.62b1` (urllib3, redis, requests, etc.) that conflict with `opentelemetry-semantic-conventions 0.60b1` already present in the environment. Pip reports these as warnings during install. They do not affect the LangGraph tracing path and can be safely ignored. Documented in `requirements.txt` and `labs/module1/lab1_6_visualizing_the_pipeline.md`.
 
-**Lab added:** `labs/module1/lab1_6_visualizing_the_pipeline.md` — 8-step walkthrough covering install verification, running with `--observe on`, reading span data for a tool-call trace, a blocked guard trace, and a RAG retrieval trace. Includes a comparison table of what Phoenix shows vs. what the `logs/` JSONL files cover.
+**Lab added:** `labs/module1/lab1_6_visualizing_the_pipeline.md` — 9-step walkthrough: install verification, start Phoenix server (persistent, dedicated terminal), open UI, run agent as client, read a tool-call trace, read a blocked guard trace, read a RAG retrieval trace, compare traces across sessions, and understand what Phoenix does not capture. Includes a comparison table of what Phoenix shows vs. what the `logs/` JSONL files cover.
 
 **Deliverables:** Updated `requirements.txt`, updated `agent.py` (`_setup_phoenix`, `--observe` flag, banner line), `labs/module1/lab1_6_visualizing_the_pipeline.md`, updated `README.md` (CLI flags table)
 **Depends on:** Stage 13
