@@ -151,7 +151,7 @@ async def _init_session(persona_slug, use_rag, use_guard, use_hitl):
     await cl.Message(content="Ready — " + " · ".join(parts), author="System").send()
 
     diagram = _pipeline_mermaid(use_rag, use_guard, use_hitl)
-    await cl.Message(content=f"**Pipeline topology** (blue = active, green = fired this turn):\n\n{diagram}", author="System").send()
+    await cl.Message(content=f"**Pipeline topology**\n\n{diagram}", author="System").send()
 
 
 @cl.on_settings_update
@@ -318,7 +318,7 @@ async def on_message(user_msg: cl.Message):
 
 
 # ---------------------------------------------------------------------------
-# Pipeline Mermaid diagram  (Option D — D-02)
+# Pipeline diagram  (Option D — D-02)
 # ---------------------------------------------------------------------------
 
 def _pipeline_mermaid(
@@ -328,73 +328,44 @@ def _pipeline_mermaid(
     fired: set[str] | None = None,
     guard_blocked: bool = False,
 ) -> str:
-    """Return a Mermaid flowchart for the current pipeline config and turn path.
+    """Return a markdown inline-chain showing pipeline topology and per-turn path.
 
-    Node colours:
-        green  = fired this turn
-        blue   = configured but did not fire
-        red    = guard blocked the input
-        (disabled nodes are omitted when guard is blocked to keep the diagram clean)
+    Node badges:
+        🟢  fired this turn
+        🔵  configured but did not fire
+        🔴  guard blocked the input
     """
     fired = fired or set()
 
-    def cls(node: str) -> str:
-        if node == "guard_input" and guard_blocked:
-            return "blocked"
-        return "on" if node in fired else "cfg"
+    def badge(key: str, label: str) -> str:
+        if key == "guard_input" and guard_blocked:
+            return f"🔴 **{label}**"
+        return f"{'🟢' if key in fired else '🔵'} **{label}**"
 
-    rows = [
-        "```mermaid",
-        "graph LR",
-        "  classDef on      fill:#2ECC71,stroke:#27AE60,color:#fff",
-        "  classDef cfg     fill:#5DADE2,stroke:#2E86C1,color:#fff",
-        "  classDef blocked fill:#E74C3C,stroke:#C0392B,color:#fff",
-        "  classDef ep      fill:#ECF0F1,stroke:#7F8C8D,color:#2C3E50",
-    ]
+    if guard_blocked:
+        return (
+            f"Input → {badge('guard_input', 'Input Guard')} → 🔴 **Blocked**\n\n"
+            "_🟢 fired  ·  🔵 configured  ·  🔴 blocked_"
+        )
 
-    # ── node declarations ──────────────────────────────────────────────────
-    rows.append("  In([Input]):::ep")
+    chain = ["Input"]
     if use_guard:
-        rows.append(f"  GI[Input Guard]:::{cls('guard_input')}")
+        chain.append(badge("guard_input", "Input Guard"))
+    if use_rag:
+        chain.append(badge("rag", "RAG"))
+    chain.append(badge("reason", "Reason"))
+    chain.append(badge("agent", "Agent"))
+    if use_hitl:
+        chain.append(badge("hitl", "HITL"))
+    chain.append(badge("tools", "Tools"))
+    if use_guard:
+        chain.append(badge("output_guard", "Output Guard"))
+    chain.append("Response")
 
-    if guard_blocked:
-        rows.append("  BLK([Blocked]):::blocked")
-    else:
-        if use_rag:
-            rows.append(f"  RA[RAG]:::{cls('rag')}")
-        rows.append(f"  RE[Reason]:::{cls('reason')}")
-        rows.append(f"  AG[Agent]:::{cls('agent')}")
-        if use_hitl:
-            rows.append(f"  HI[HITL]:::{cls('hitl')}")
-        rows.append(f"  TO[Tools]:::{cls('tools')}")
-        if use_guard:
-            rows.append(f"  GO[Output Guard]:::{cls('output_guard')}")
-        rows.append("  Out([Response]):::ep")
-
-    # ── edges ──────────────────────────────────────────────────────────────
-    if guard_blocked:
-        rows.append("  In --> GI --> BLK")
-    else:
-        chain = ["In"]
-        if use_guard:
-            chain.append("GI")
-        if use_rag:
-            chain.append("RA")
-        chain += ["RE", "AG"]
-        rows.append("  " + " --> ".join(chain))
-
-        if use_hitl:
-            rows.append("  AG -->|tool call| HI --> TO")
-        else:
-            rows.append("  AG -.->|tool call| TO")
-
-        if use_guard:
-            rows.append("  AG -->|done| GO --> Out")
-        else:
-            rows.append("  AG -->|done| Out")
-
-    rows.append("```")
-    return "\n".join(rows)
+    return (
+        " → ".join(chain) + "\n\n"
+        "_🟢 fired  ·  🔵 configured_"
+    )
 
 
 # ---------------------------------------------------------------------------

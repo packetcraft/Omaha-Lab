@@ -223,7 +223,7 @@ Select a **Lab Mode** from the profile picker before your first message:
 
 The sidebar gear icon exposes individual **Chat Settings** — Persona, Guard, RAG, and HITL — so any custom combination can be composed without touching the CLI. Profiles initialize all four controls; changing any toggle mid-session rebuilds the agent immediately.
 
-**Pipeline diagram:** At session start and after every message, Chainlit renders a colour-coded Mermaid flowchart showing which pipeline nodes are configured and which ones fired on the last turn (green = fired · blue = configured/idle · red = guard blocked). No extra setup required — it is built into the UI. See [Lab 1.7](labs/module1/lab1_7_chainlit_pipeline_diagram.md).
+**Pipeline diagram:** At session start and after every message, Chainlit renders a colour-coded inline chain showing which pipeline nodes are configured and which ones fired on the last turn (🟢 fired · 🔵 configured/idle · 🔴 guard blocked). No extra setup required — it is built into the UI. See [Lab 1.7](labs/module1/lab1_7_chainlit_pipeline_diagram.md).
 
 ---
 
