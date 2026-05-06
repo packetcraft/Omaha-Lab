@@ -150,6 +150,9 @@ async def _init_session(persona_slug, use_rag, use_guard, use_hitl):
 
     await cl.Message(content="Ready — " + " · ".join(parts), author="System").send()
 
+    diagram = _pipeline_mermaid(use_rag, use_guard, use_hitl)
+    await cl.Message(content=f"**Pipeline topology** (blue = active, green = fired this turn):\n\n{diagram}", author="System").send()
+
 
 @cl.on_settings_update
 async def on_settings_update(settings):
@@ -212,6 +215,7 @@ def _build_session(persona_slug, use_rag, use_guard, use_hitl):
 
     return {
         "graph":      graph,
+        "use_rag":    use_rag,
         "use_guard":  use_guard,
         "use_hitl":   use_hitl,
         "hitl_req_q": hitl_req_q,
@@ -235,6 +239,7 @@ async def on_message(user_msg: cl.Message):
 
     graph      = session["graph"]
     lc_config  = {"configurable": {"thread_id": session["thread_id"]}}
+    use_rag    = session["use_rag"]
     use_guard  = session["use_guard"]
     use_hitl   = session["use_hitl"]
     hitl_req_q = session.get("hitl_req_q")
@@ -258,6 +263,8 @@ async def on_message(user_msg: cl.Message):
     threading.Thread(target=_run_graph, daemon=True).start()
 
     final_text: str | None = None
+    fired_nodes: set[str] = set()
+    guard_blocked = False
 
     while True:
         # Service pending HITL approval requests before draining new events.
@@ -293,10 +300,101 @@ async def on_message(user_msg: cl.Message):
             await cl.Message(content=f"Agent error: `{payload}`", author="System").send()
             break
 
+        for node_name, update in payload.items():
+            if not node_name.startswith("__") and isinstance(update, dict):
+                fired_nodes.add(node_name)
+                if node_name == "guard_input" and update.get("guard_blocked"):
+                    guard_blocked = True
+
         final_text = await _handle_event(payload, use_guard) or final_text
+
+    # Per-turn pipeline path diagram
+    diagram = _pipeline_mermaid(use_rag, use_guard, use_hitl, fired=fired_nodes, guard_blocked=guard_blocked)
+    async with cl.Step(name="Pipeline path", type="tool") as step:
+        step.output = diagram
 
     if final_text:
         await cl.Message(content=final_text).send()
+
+
+# ---------------------------------------------------------------------------
+# Pipeline Mermaid diagram  (Option D — D-02)
+# ---------------------------------------------------------------------------
+
+def _pipeline_mermaid(
+    use_rag: bool,
+    use_guard: bool,
+    use_hitl: bool,
+    fired: set[str] | None = None,
+    guard_blocked: bool = False,
+) -> str:
+    """Return a Mermaid flowchart for the current pipeline config and turn path.
+
+    Node colours:
+        green  = fired this turn
+        blue   = configured but did not fire
+        red    = guard blocked the input
+        (disabled nodes are omitted when guard is blocked to keep the diagram clean)
+    """
+    fired = fired or set()
+
+    def cls(node: str) -> str:
+        if node == "guard_input" and guard_blocked:
+            return "blocked"
+        return "on" if node in fired else "cfg"
+
+    rows = [
+        "```mermaid",
+        "graph LR",
+        "  classDef on      fill:#2ECC71,stroke:#27AE60,color:#fff",
+        "  classDef cfg     fill:#5DADE2,stroke:#2E86C1,color:#fff",
+        "  classDef blocked fill:#E74C3C,stroke:#C0392B,color:#fff",
+        "  classDef ep      fill:#ECF0F1,stroke:#7F8C8D,color:#2C3E50",
+    ]
+
+    # ── node declarations ──────────────────────────────────────────────────
+    rows.append("  In([Input]):::ep")
+    if use_guard:
+        rows.append(f"  GI[Input Guard]:::{cls('guard_input')}")
+
+    if guard_blocked:
+        rows.append("  BLK([Blocked]):::blocked")
+    else:
+        if use_rag:
+            rows.append(f"  RA[RAG]:::{cls('rag')}")
+        rows.append(f"  RE[Reason]:::{cls('reason')}")
+        rows.append(f"  AG[Agent]:::{cls('agent')}")
+        if use_hitl:
+            rows.append(f"  HI[HITL]:::{cls('hitl')}")
+        rows.append(f"  TO[Tools]:::{cls('tools')}")
+        if use_guard:
+            rows.append(f"  GO[Output Guard]:::{cls('output_guard')}")
+        rows.append("  Out([Response]):::ep")
+
+    # ── edges ──────────────────────────────────────────────────────────────
+    if guard_blocked:
+        rows.append("  In --> GI --> BLK")
+    else:
+        chain = ["In"]
+        if use_guard:
+            chain.append("GI")
+        if use_rag:
+            chain.append("RA")
+        chain += ["RE", "AG"]
+        rows.append("  " + " --> ".join(chain))
+
+        if use_hitl:
+            rows.append("  AG -->|tool call| HI --> TO")
+        else:
+            rows.append("  AG -.->|tool call| TO")
+
+        if use_guard:
+            rows.append("  AG -->|done| GO --> Out")
+        else:
+            rows.append("  AG -->|done| Out")
+
+    rows.append("```")
+    return "\n".join(rows)
 
 
 # ---------------------------------------------------------------------------

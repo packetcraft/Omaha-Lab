@@ -232,7 +232,7 @@ Ask a question grounded in the threat intel document:
 You: What TTPs does APT-COBALT-7 use?
 ```
 
-In Phoenix, the trace tree now includes a new span before reasoning: the ChromaDB retrieval. Click it and look at:
+In Phoenix, the trace tree now includes a `rag` span before `reason`. This is the LangGraph RAG node — it wraps the ChromaDB retrieval. Click it and look at:
 - **Input:** your embedded query vector (shown as a list of floats)
 - **Output:** the three retrieved chunks — raw text, source filename, and distance score
 
@@ -246,7 +246,7 @@ Phoenix keeps every trace in its history. Use the traces list on the left panel 
 
 1. The simple weather query (Step 5) — short, 4 spans
 2. The blocked injection (Step 6) — 1 span, guard terminates it
-3. The RAG query (Step 7) — includes ChromaDB retrieval span
+3. The RAG query (Step 7) — includes `rag` span before `reason`
 
 Notice how the span count, total duration, and token usage change with each configuration. This is what the `[Guard]`, `[RETRIEVE]`, and timing output in the CLI maps to — Phoenix just lets you explore the underlying data at each node.
 
@@ -258,6 +258,13 @@ Phoenix captures everything LangChain/LangGraph emits via OpenTelemetry. It does
 
 - The HITL prompt (`[HITL] Approve this action?`) — that's a blocking `input()` call outside the LLM trace
 - Canary token detection and Presidio redaction decisions — those run as Python logic inside `output_guard_node`, not as LLM calls, so they appear as a single `output_guard` span with no sub-spans
+
+**Spans you will see that are not in the CLI trace:**
+
+| Span | What it is |
+|---|---|
+| `LangGraph` | Root span wrapping the entire graph execution — every trace is nested under this |
+| `should_continue` | LangGraph's internal routing function that decides after each `agent` turn whether to call tools, run output guard, or end. Not an LLM call — appears as a near-zero-duration span |
 
 For complete observability of the security layer, use Phoenix traces alongside the `logs/` JSONL files:
 
