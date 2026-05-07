@@ -11,7 +11,7 @@
 
 Omaha-Lab is a well-engineered, pedagogically sound LLM security research environment. The 11-stage PRD-driven build is complete, the code is clean, and the layered architecture (input guard → RAG → reason → agent → HITL → output guard) mirrors real-world patterns students will encounter in production systems. The FOUNDATIONS.md and DECISIONS.md documents are a cut above what most labs bother to produce.
 
-**Post-review session (2026-05-07):** All P1 and P2 items from the original backlog were implemented in one session. Six fixes shipped across seven commits.
+**Post-review session (2026-05-07):** All P1 and P2 items from the original backlog implemented. Ten commits shipped: schema_guard wiring, Module 4 labs, pyproject.toml fixes, iteration cap, test suite, docs (PRD v4.5), CI workflow, cross-platform test fix, and Makefile.
 
 ---
 
@@ -122,9 +122,9 @@ The `pyproject.toml` optional dependency groups (fix #4) solve the `pip install 
 
 ---
 
-### C. Add a Makefile 🔲 DONE
+### C. Add a Makefile ✅ DONE
 
-**Implemented:** `Makefile` with platform detection (`OS=Windows_NT` → `venv/Scripts/`; else `venv/bin/`).
+**Implemented (commit `cc39b4c`):** `Makefile` with platform detection (`OS=Windows_NT` → `venv/Scripts/`; else `venv/bin/`).
 
 Targets: `install` (venv + deps + spacy model + .env), `models` (ollama pulls), `run` / `run-secure` / `run-rag` / `run-full`, `ui`, `phoenix`, `test`, `clean`, `help`. Quick start: `make install models run`. README setup sections updated with shortcut notes for macOS and Windows.
 
@@ -132,7 +132,7 @@ Targets: `install` (venv + deps + spacy model + .env), `models` (ollama pulls), 
 
 ### D. Add a GitHub Actions CI workflow ✅ DONE
 
-**Implemented (commit `TBD`):** `.github/workflows/ci.yml` — runs on push and PR to master.
+**Implemented (commit `34bd543`):** `.github/workflows/ci.yml` — runs on push and PR to master.
 
 ```yaml
 on: push/pull_request (master)
@@ -219,3 +219,7 @@ A `docker-compose.yml` for classroom/demo deployments. Non-blocking for local de
 | `91bf145` | Add optional dependency groups to pyproject.toml (nlp, ui, observe, all) |
 | `6fa0486` | Add application-level iteration cap (state.py, graph.py, agent.py, lab3_7) |
 | `0d2e4f1` | Add pytest test suite — 107 tests across five modules; add dev optional group |
+| `3510662` | Update PRD to v4.5, PROJECT_REVIEW, and README to reflect post-review session work |
+| `34bd543` | Add GitHub Actions CI workflow; update PROJECT_REVIEW |
+| `5265f47` | Fix test_path_traversal_absolute_windows: skip on non-Windows (CI green) |
+| `cc39b4c` | Add Makefile with cross-platform setup and run targets |
