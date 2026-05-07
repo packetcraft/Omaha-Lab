@@ -88,13 +88,13 @@ Install commands: `pip install ".[ui]"`, `pip install ".[observe]"`, `pip instal
 
 ---
 
-### 5. LlamaGuard fails open — not surfaced in a lab 🔲 OPEN
+### 5. LlamaGuard fails open — not surfaced in a lab ✅ FIXED
 
 `llama_guard.py:108-110`: when Llama Guard is unreachable, the function logs a warning and returns `GuardResult(safe=True)`. This is the right default for availability, but it is a meaningful security property — a network partition silently disables the guardrail.
 
-The fail-open behaviour is now covered by `tests/test_llama_guard.py::TestFailOpen` (network error and timeout both verified to return `safe=True`). However, no lab explicitly attacks this surface.
-
-**Remaining:** Add a note in `lab3_1_llama_guard_inputs.md` Discussion Questions, and consider a Module 2 lab targeting guard availability.
+**Fix applied (commit `TBD`):**
+- `lab3_1_llama_guard_inputs.md`: added a "Security note — fail-open" callout in the Background section pointing students to the relevant code
+- Discussion Question 4 added: three-part question covering (a) fail-open vs. fail-closed tradeoffs, (b) guard availability attack surface and OWASP mapping, (c) mitigations — observability alerting and regex pre-filter as a secondary fast-path
 
 ---
 
@@ -200,7 +200,7 @@ A `docker-compose.yml` for classroom/demo deployments. Non-blocking for local de
 
 | Priority | Item | Effort |
 |---|---|---|
-| P1 | Add note to `lab3_1` about Llama Guard fail-open (Issue #5) | 30 min |
+| ~~P1~~ | ~~Add note to `lab3_1` about Llama Guard fail-open (Issue #5)~~ | ✅ Done |
 | ~~P2~~ | ~~GitHub Actions CI (pytest on push/PR)~~ | ✅ Done |
 | ~~P2~~ | ~~Makefile / setup script~~ | ✅ Done |
 | P3 | Split `requirements.txt` into core + optional files | 30 min |

@@ -24,6 +24,8 @@ The guard categories most relevant to this lab are:
 
 Most prompt injection payloads that explicitly instruct the model to ignore its system prompt are classified under S2 or as general policy violations.
 
+> **Security note — fail-open:** If the Ollama server is unreachable (network error or timeout), `llama_guard.py` returns `GuardResult(safe=True)` and logs a warning. This is the correct default for availability — a failed guard should not take the agent offline — but it is a meaningful security property. See Discussion Question 4.
+
 > **Prerequisites:** Llama Guard 3 must be pulled before this lab. If you have not done so yet:
 > ```bash
 > ollama pull llama-guard3
@@ -144,6 +146,14 @@ Observe whether this payload is blocked or passes through. If it passes, compare
 2. The guard adds one full model inference call (`llama-guard3`) before every agent invocation. In a high-throughput deployment, what is the cost-performance tradeoff of running a guard model in front of every request?
 
 3. The blocked inputs log records the raw user input alongside the safety category. What privacy implications does this log have, and who should have access to it in a production deployment?
+
+4. **Fail-open behaviour and guard availability attacks.** Open `guardrails/llama_guard.py` and find the `except` block that handles `requests.ConnectionError` and `requests.Timeout`. Notice that both branches return `GuardResult(safe=True)` — the guard silently passes the input through when Ollama is unreachable.
+
+   a. Why is `safe=True` (fail-open) a reasonable default compared to `safe=False` (fail-closed) for a local inference guard? What would a fail-closed guard do to agent availability during a routine Ollama restart?
+
+   b. Now consider the attacker's perspective: if an adversary can cause a network partition between the agent process and the Ollama server — or simply exhaust Ollama's request queue — every input reaches the agent unguarded. This is a **guard availability attack**. What OWASP category does it map to, and does the current system surface any signal to the operator when the guard is degraded?
+
+   c. Sketch two mitigations: one that preserves fail-open behaviour while alerting operators (observability), and one that adds a secondary fast-path check that remains effective even when Ollama is down (hint: the regex pre-filter in `_INJECTION_PATTERNS` already runs before the Ollama call).
 
 ---
 
