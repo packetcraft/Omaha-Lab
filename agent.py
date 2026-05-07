@@ -207,6 +207,7 @@ def run_repl(
     hitl: bool = False,
     verbose_rag: bool = False,
     observe_url: str | None = None,
+    max_iterations: int = 10,
 ) -> None:
     thread_id = str(uuid.uuid4())
     config    = {"configurable": {"thread_id": thread_id}}
@@ -218,6 +219,7 @@ def run_repl(
     guard_display   = "on (regex-prefilter + llama-guard3 + presidio + canary)" if guard else "off"
     hitl_display    = "on (high-risk tool calls require approval)" if hitl else "off"
     observe_display = f"on  →  {observe_url}" if observe_url else "off"
+    iter_display    = f"{max_iterations} max per session"
 
     print(f"\n{C.BOLD}Omaha-Lab Agent{C.RESET}  |  model: {C.CYAN}{model}{C.RESET}")
     print(f"Persona:         {C.YELLOW}{persona_display}{risk_display}{C.RESET}")
@@ -225,6 +227,7 @@ def run_repl(
     print(f"RAG:             {rag_display}")
     print(f"Guard:           {guard_display}")
     print(f"HITL:            {hitl_display}")
+    print(f"Iterations:      {iter_display}")
     print(f"Observe:         {observe_display}")
     print(f"{C.GRAY}{'─' * 50}{C.RESET}")
     print(f"Type {C.BOLD}'quit'{C.RESET} or {C.BOLD}'exit'{C.RESET} to stop.\n")
@@ -457,6 +460,14 @@ def main() -> None:
         help="Enable Phoenix observability UI at localhost:6006  (default: off)",
     )
     parser.add_argument(
+        "--max-iterations",
+        dest="max_iterations",
+        type=int,
+        default=10,
+        metavar="N",
+        help="Hard cap on agent steps per session — stops runaway tool loops  (default: 10)",
+    )
+    parser.add_argument(
         "--list-personas",
         action="store_true",
         help="List available persona names and exit",
@@ -504,6 +515,7 @@ def main() -> None:
         guard=llama_guard,
         presidio_guard=presidio_guard,
         hitl=(args.hitl == "on"),
+        max_iterations=args.max_iterations,
     )
     run_repl(
         graph,
@@ -515,6 +527,7 @@ def main() -> None:
         hitl=(args.hitl == "on"),
         verbose_rag=args.verbose_rag,
         observe_url=observe_url,
+        max_iterations=args.max_iterations,
     )
 
 

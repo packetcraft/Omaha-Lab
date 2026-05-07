@@ -41,6 +41,7 @@ def build_graph(
     presidio_guard=None,       # PresidioGuard instance; enables PII redaction on output
     hitl: bool = False,        # Enable HITL authorization for high-risk tool calls
     hitl_node_factory=None,    # Optional override: callable() -> node fn (e.g. for Chainlit UI)
+    max_iterations: int = 10,  # Hard cap on agent_node invocations per session
 ):
     model = model or os.getenv("OLLAMA_MODEL", "qwen2.5:1.5b")
     base_url = base_url or os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
@@ -70,6 +71,7 @@ def build_graph(
     # ------------------------------------------------------------------
 
     def agent_node(state: AgentState) -> dict:
+        count = (state.get("iteration_count") or 0) + 1
         messages = list(state["messages"])
         prefix: list = []
         if tools:
@@ -83,7 +85,23 @@ def build_graph(
         if reasoning:
             prefix.append(SystemMessage(content=f"Your prior reasoning:\n{reasoning}"))
         response = llm_with_tools.invoke(prefix + messages)
-        return {"messages": [response], "reasoning": ""}
+
+        # Hard cap: if the iteration limit is hit and the model still wants to call
+        # tools, replace the response so should_continue routes to END instead of tools.
+        if count >= max_iterations and getattr(response, "tool_calls", None):
+            print(
+                f"\n[ITER LIMIT] Maximum iterations ({max_iterations}) reached"
+                " — stopping tool calls."
+            )
+            response = AIMessage(
+                content=(
+                    f"I have reached the maximum number of steps ({max_iterations}) "
+                    "and cannot make further tool calls. "
+                    "Please try a more focused question."
+                )
+            )
+
+        return {"messages": [response], "reasoning": "", "iteration_count": count}
 
     # ------------------------------------------------------------------
     # Routing: after agent node

@@ -14,3 +14,5 @@ class AgentState(TypedDict):
     guard_blocked: bool
     # Pre-tool reasoning text produced by reason_node; cleared after agent_node consumes it.
     reasoning: str
+    # Number of agent_node invocations in the current session; enforces max_iterations cap.
+    iteration_count: int

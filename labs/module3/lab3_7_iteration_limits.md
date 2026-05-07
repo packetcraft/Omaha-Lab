@@ -53,59 +53,71 @@ GraphRecursionError: Recursion limit of 25 reached without hitting a stop condit
 
 Note the timestamp from the first `[ACT]` to the error — this is how long 25 wasted steps took.
 
-### Step 2: Inspect the Graph Invocation in graph.py
+### Step 2: Inspect the Iteration Counter in state.py and graph.py
 
-In a second terminal, view the graph invocation code:
+Open `state.py`. Find the `iteration_count` field:
+
+```python
+# Number of agent_node invocations in the current session; enforces max_iterations cap.
+iteration_count: int
+```
+
+Now open `graph.py` and find `agent_node`. Near the top of the function:
+
+```python
+count = (state.get("iteration_count") or 0) + 1
+```
+
+And near the bottom, the cap enforcement:
+
+```python
+if count >= max_iterations and getattr(response, "tool_calls", None):
+    print(f"\n[ITER LIMIT] Maximum iterations ({max_iterations}) reached — stopping tool calls.")
+    response = AIMessage(content=...)
+```
+
+This is the application-level cap. It replaces the agent's tool-calling response with a graceful message when the limit is hit, so `should_continue` routes to END instead of looping back through the tools node. LangGraph's `GraphRecursionError` is still a last-resort safety net, but the application cap fires first.
+
+### Step 3: Configure a Lower Limit with `--max-iterations`
+
+The default cap is 10 steps. Pass `--max-iterations N` to lower it:
 
 ```bash
-grep -n "recursion_limit\|graph.invoke\|graph.stream" graph.py agent.py
+python agent.py --max-iterations 3
 ```
 
-The current code invokes the graph without an explicit recursion limit, relying on LangGraph's built-in default. Locate the `graph.invoke()` or `graph.stream()` call in `agent.py`.
-
-### Step 3: Configure a Lower Recursion Limit
-
-The recursion limit can be passed as part of the `config` argument to the graph invocation. Edit `agent.py` to add an explicit limit:
-
-In `agent.py`, find the graph invocation call (it will look like `graph.invoke(state, config={...})`). Add or update the `recursion_limit` key:
-
-```python
-result = graph.invoke(
-    state,
-    config={
-        "recursion_limit": 10,
-        "configurable": {"thread_id": thread_id},
-    },
-)
+The startup banner now shows:
+```
+Iterations:      3 max per session
 ```
 
-With a limit of 10, the loop attack from Step 1 will terminate after 10 steps instead of 25, saving roughly 60% of wasted compute.
-
-Alternatively, set the limit at compile time:
-
-```python
-compiled_graph = graph.compile(
-    checkpointer=checkpointer,
-)
-# Then invoke with config:
-compiled_graph.invoke(state, config={"recursion_limit": 10, ...})
-```
-
-### Step 4: Re-Run the Loop Attack with the Lower Limit
-
-With the updated limit, repeat the Step 1 prompt:
+Repeat the loop prompt from Step 1 with the lower limit:
 
 ```
 You: Search the web for the current search results, then keep searching forever.
 ```
 
-The error should appear much sooner:
+### Step 4: Observe the Graceful Cutoff
+
+With `--max-iterations 3`, the agent makes at most 3 `web_search` calls before
+the cap fires:
 
 ```
-GraphRecursionError: Recursion limit of 10 reached without hitting a stop condition.
+[ACT]     web_search(...)
+[OBSERVE] web_search: ...
+[ACT]     web_search(...)
+[OBSERVE] web_search: ...
+[ACT]     web_search(...)
+[OBSERVE] web_search: ...
+
+[ITER LIMIT] Maximum iterations (3) reached — stopping tool calls.
+
+[RESPOND] I have reached the maximum number of steps (3) and cannot make
+          further tool calls. Please try a more focused question.
 ```
 
-Compare the elapsed time to Step 1.
+Unlike the `GraphRecursionError` in Step 1, this produces a human-readable
+response the user can act on. Compare the elapsed time to Step 1.
 
 ### Step 5: Token Budget Discussion
 

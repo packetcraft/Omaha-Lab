@@ -199,6 +199,7 @@ python agent.py --persona hr_assistant --rag on --guard on --hitl on --observe o
 | `--rag` | `on`, `off` | `off` | Enable RAG retrieval from `context_docs/` |
 | `--guard` | `on`, `off` | `off` | Enable regex pre-filter + Llama Guard 3 input filtering + Presidio output redaction |
 | `--hitl` | `on`, `off` | `off` | Enable Human-in-the-Loop authorization |
+| `--max-iterations` | integer | `10` | Hard cap on agent steps per session — stops runaway tool loops (see [Lab 3.7](labs/module3/lab3_7_iteration_limits.md)) |
 | `--observe` | `on`, `off` | `off` | Connect to a running Phoenix server at `http://127.0.0.1:6006` and send live span traces of every pipeline node. Start Phoenix first: `python -m phoenix.server.main serve` (see [Lab 1.6](labs/module1/lab1_6_visualizing_the_pipeline.md)) |
 
 ---
