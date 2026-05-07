@@ -184,9 +184,20 @@ A script that fires a fixed set of attack prompts and reports hits/misses per gu
 
 ---
 
-### Attack Prompt Library (`prompts/`) 🔲 OPEN
+### Attack Prompt Library (`prompts/`) ✅ DONE
 
-A curated `prompts/` directory organised by OWASP category. Removes the burden on students to craft novel attacks and ensures lab exercises are reproducible across cohorts.
+**Implemented:** 26 YAML prompts across 8 OWASP categories. Each file includes `id`, `category`, `persona`, `rag`, `hitl`, `guard_expected`, `layer`, `lab`, `difficulty`, `prompt`, and `notes` fields — schema is stable for consumption by `bench.py`.
+
+| Category | Files | Highlights |
+|---|---|---|
+| LLM01 Prompt Injection | 10 | Direct (6): regex-caught and guard-bypass variants; Indirect (4): tool response, file system, RAG pipeline |
+| LLM02 Sensitive Disclosure | 3 | Direct bulk request, authority impersonation, structured JSON extraction |
+| LLM05 Output Handling | 2 | XSS script tag, shell command substitution — both pass all guards |
+| LLM06 Excessive Agency | 4 | Export, authority-gated dump, path traversal payload, multi-step chain |
+| LLM07 System Prompt Leakage | 3 | Direct ask (regex), indirect framing, completion attack |
+| LLM08 RAG Poisoning | 1 | Benign query retrieving poisoned_policy.md chunk |
+| LLM09 Misinformation | 1 | RAG vs. no-RAG grounding comparison |
+| LLM10 Unbounded Consumption | 2 | Recursive search loop, token flood repetition |
 
 ---
 
@@ -205,7 +216,7 @@ A `docker-compose.yml` for classroom/demo deployments. Non-blocking for local de
 | ~~P2~~ | ~~Makefile / setup script~~ | ✅ Done |
 | P3 | Split `requirements.txt` into core + optional files | 30 min |
 | P3 | Evaluation harness (`bench.py`) | 1 day |
-| P3 | Attack prompt library (`prompts/`) | 2–4 hours |
+| ~~P3~~ | ~~Attack prompt library (`prompts/`)~~ | ✅ Done |
 | P4 | Module 5 (multi-agent security) | 2–3 days |
 | P4 | Docker Compose | 2–4 hours |
 
