@@ -128,26 +128,17 @@ Setup still requires six manual commands across two platforms. A thin Makefile o
 
 ---
 
-### D. Add a GitHub Actions CI workflow 🔲 OPEN
+### D. Add a GitHub Actions CI workflow ✅ DONE
 
-No CI exists. A minimal workflow running `pytest tests/` on push/PR would catch regressions. The test suite (107 tests, no Ollama required) makes this straightforward.
+**Implemented (commit `TBD`):** `.github/workflows/ci.yml` — runs on push and PR to master.
 
-Suggested `.github/workflows/ci.yml`:
 ```yaml
-on: [push, pull_request]
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: "3.11" }
-      - run: pip install -r requirements.txt pytest
-      - run: python -m spacy download en_core_web_sm
-      - run: pytest tests/ -v
+on: push/pull_request (master)
+jobs: test (ubuntu-latest, python 3.11)
+  - pip install -r requirements.txt + pytest
+  - python -m spacy download en_core_web_sm  (small model; tests don't exercise PII redaction)
+  - pytest tests/ -v
 ```
-
-Note: the CI spacy model can be `en_core_web_sm` (small/fast) rather than `en_core_web_lg` since the tests don't exercise PII redaction directly.
 
 ---
 
@@ -208,7 +199,7 @@ A `docker-compose.yml` for classroom/demo deployments. Non-blocking for local de
 | Priority | Item | Effort |
 |---|---|---|
 | P1 | Add note to `lab3_1` about Llama Guard fail-open (Issue #5) | 30 min |
-| P2 | GitHub Actions CI (pytest on push/PR) | 30 min |
+| ~~P2~~ | ~~GitHub Actions CI (pytest on push/PR)~~ | ✅ Done |
 | P2 | Makefile / `setup.sh` / `setup.ps1` | 1 hour |
 | P3 | Split `requirements.txt` into core + optional files | 30 min |
 | P3 | Evaluation harness (`bench.py`) | 1 day |
