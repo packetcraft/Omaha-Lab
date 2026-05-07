@@ -122,9 +122,11 @@ The `pyproject.toml` optional dependency groups (fix #4) solve the `pip install 
 
 ---
 
-### C. Add a Makefile (or `setup.sh` / `setup.ps1`) 🔲 OPEN
+### C. Add a Makefile 🔲 DONE
 
-Setup still requires six manual commands across two platforms. A thin Makefile or platform-specific script would reduce first-run friction.
+**Implemented:** `Makefile` with platform detection (`OS=Windows_NT` → `venv/Scripts/`; else `venv/bin/`).
+
+Targets: `install` (venv + deps + spacy model + .env), `models` (ollama pulls), `run` / `run-secure` / `run-rag` / `run-full`, `ui`, `phoenix`, `test`, `clean`, `help`. Quick start: `make install models run`. README setup sections updated with shortcut notes for macOS and Windows.
 
 ---
 
@@ -200,7 +202,7 @@ A `docker-compose.yml` for classroom/demo deployments. Non-blocking for local de
 |---|---|---|
 | P1 | Add note to `lab3_1` about Llama Guard fail-open (Issue #5) | 30 min |
 | ~~P2~~ | ~~GitHub Actions CI (pytest on push/PR)~~ | ✅ Done |
-| P2 | Makefile / `setup.sh` / `setup.ps1` | 1 hour |
+| ~~P2~~ | ~~Makefile / setup script~~ | ✅ Done |
 | P3 | Split `requirements.txt` into core + optional files | 30 min |
 | P3 | Evaluation harness (`bench.py`) | 1 day |
 | P3 | Attack prompt library (`prompts/`) | 2–4 hours |

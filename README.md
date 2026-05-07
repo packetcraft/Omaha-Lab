@@ -99,6 +99,8 @@ ollama pull qwen2.5:7b         # Full-power option (~4.7 GB, requires ~8 GB VRAM
 
 ## Setup — macOS (Apple Silicon)
 
+> **Shortcut:** `make install && make models` runs all six setup steps below in one command. Requires `make` (included with Xcode Command Line Tools: `xcode-select --install`).
+
 ```bash
 # 1. Install Ollama via Homebrew
 brew install ollama
@@ -131,6 +133,8 @@ cp .env.example .env
 ---
 
 ## Setup — Windows (Git Bash)
+
+> **Shortcut:** `make install && make models` runs all six setup steps below in one command. Requires `make` — install via `winget install GnuWin32.Make` or `choco install make`, then restart Git Bash.
 
 ```bash
 # 1. Install Ollama for Windows
