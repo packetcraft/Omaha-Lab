@@ -26,6 +26,31 @@ dependencies = [
     "PyYAML>=6.0.2",
 ]
 
+[project.optional-dependencies]
+# pip install ".[nlp]"      — required by Presidio (spacy NER model pulled separately)
+nlp = [
+    "spacy>=3.8",
+]
+# pip install ".[ui]"       — Chainlit browser interface (chainlit run ui.py)
+ui = [
+    "chainlit>=2.0",
+]
+# pip install ".[observe]"  — Arize Phoenix local trace viewer (--observe on)
+observe = [
+    "arize-phoenix>=15.0",
+    "arize-phoenix-otel>=0.16",
+    "openinference-instrumentation>=0.1",
+    "openinference-instrumentation-langchain>=0.1",
+    "openinference-semantic-conventions>=0.1",
+    "opentelemetry-api>=1.39",
+    "opentelemetry-sdk>=1.39",
+    "opentelemetry-exporter-otlp-proto-http>=1.39",
+]
+# pip install ".[all]"      — everything above
+all = [
+    "omaha-lab[nlp,ui,observe]",
+]
+
 [project.urls]
 Homepage = "https://github.com/omaha-lab/omaha-lab"
 Issues = "https://github.com/omaha-lab/omaha-lab/issues"
