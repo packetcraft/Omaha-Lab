@@ -178,9 +178,19 @@ Implementation: extend `build_graph()` to accept a `peer_agents` list and add an
 
 ---
 
-### Evaluation Harness (`bench.py`) 🔲 OPEN
+### Evaluation Harness (`bench.py`) ✅ DONE
 
-A script that fires a fixed set of attack prompts and reports hits/misses per guard configuration. Especially useful for the regex pre-filter coverage gap exposed by `test_llama_guard.py`.
+**Implemented:** `bench.py` — loads all YAML files from `prompts/` and fires each against the guard stack.
+
+Two modes:
+- **`--regex-only`** — tests the regex pre-filter only; no Ollama required; instant (0.15s for all 26 prompts)
+- **default** — full `LlamaGuard.check_input()` including Llama Guard 3; requires `llama-guard3` running
+
+Filters: `--category LLM01`, `--layer regex`, `--difficulty easy`. Output: coloured table (default) or `--json` for CI. Exits non-zero if any failures.
+
+Skips prompts with `rag: true` (ChromaDB dependency) or `hitl: true` (interactive). `guard_expected: varies` prompts are reported as INFO, not scored.
+
+Makefile targets: `make bench` (full stack) and `make bench-regex` (regex-only).
 
 ---
 
@@ -215,7 +225,7 @@ A `docker-compose.yml` for classroom/demo deployments. Non-blocking for local de
 | ~~P2~~ | ~~GitHub Actions CI (pytest on push/PR)~~ | ✅ Done |
 | ~~P2~~ | ~~Makefile / setup script~~ | ✅ Done |
 | P3 | Split `requirements.txt` into core + optional files | 30 min |
-| P3 | Evaluation harness (`bench.py`) | 1 day |
+| ~~P3~~ | ~~Evaluation harness (`bench.py`)~~ | ✅ Done |
 | ~~P3~~ | ~~Attack prompt library (`prompts/`)~~ | ✅ Done |
 | P4 | Module 5 (multi-agent security) | 2–3 days |
 | P4 | Docker Compose | 2–4 hours |

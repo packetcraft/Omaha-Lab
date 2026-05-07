@@ -70,10 +70,16 @@ phoenix:  ## Arize Phoenix trace server (opens http://127.0.0.1:6006)
 # Test                                                                         #
 # --------------------------------------------------------------------------- #
 
-.PHONY: test
+.PHONY: test bench bench-regex
 
 test:  ## Run the full test suite (107 tests, no live Ollama required)
 	$(PYTHON) -m pytest tests/ -v
+
+bench:  ## Run evaluation harness against full guard stack (needs llama-guard3)
+	$(PYTHON) bench.py
+
+bench-regex:  ## Run evaluation harness — regex pre-filter only, no Ollama needed
+	$(PYTHON) bench.py --regex-only
 
 # --------------------------------------------------------------------------- #
 # Clean                                                                        #
