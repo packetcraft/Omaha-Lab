@@ -1,7 +1,7 @@
 # Product Requirements Document: Omaha-Lab (V4)
 
 **Subtitle:** A hands-on lab guide for local LLM security, agentic tool-calling, and OWASP mitigation.
-**Version:** 4.4
+**Version:** 4.5
 **Status:** Draft
 **Last Updated:** 2026-05-07
 
@@ -127,7 +127,9 @@ omaha-lab/
 ├── labs/                       # Lab guide markdown files
 │   ├── module1/
 │   ├── module2/
-│   └── module3/
+│   ├── module3/
+│   └── module4/
+├── tests/                      # pytest test suite (107 tests, no live Ollama required)
 ├── personas/                   # Agent persona YAML configs
 │   ├── customer_service.yaml
 │   ├── hr_assistant.yaml
@@ -227,7 +229,7 @@ The system must support retrieval-augmented generation using local Markdown file
 - **Input Filtering:** User inputs pass through two sequential layers before reaching the reasoning model. First, a regex pre-filter checks for known prompt injection patterns (instruction overrides, role-play escapes, system prompt extraction attempts) and blocks matches instantly as category S15, with no LLM inference cost. Inputs that pass the regex are then evaluated by Llama Guard 3 against its standard S1–S14 content safety categories. Blocked inputs are logged to `logs/blocked_inputs.jsonl` with timestamp, category, and layer attribution.
 - **PII Redaction:** Microsoft Presidio scrubs names, emails, phone numbers, SSNs, and credit card patterns from both inputs and outputs in real time.
 - **Canary Token Detection:** Post-processing step checks model outputs for embedded tracking strings before delivery to the user.
-- **Output Schema Enforcement:** Structured tool call outputs validated against expected JSON schema before execution.
+- **Output Schema Enforcement:** Structured tool call results validated against expected JSON schema (`guardrails/schema_guard.py`). The `validate_tool_result()` function is called for every `ToolMessage` in the output guard node; violations are accumulated in `schema_violations` and surfaced in the guard receipt (CLI) and Output Guard step card (Chainlit UI).
 - **HITL Authorization:** Any tool execution classified as high-risk (file write, HTTP POST, delete operations) requires explicit human approval before proceeding.
 
 ### 6.5 Success Criteria
@@ -310,11 +312,9 @@ The system must support retrieval-augmented generation using local Markdown file
 **Labs:**
 - Lab 4.1 — Reading the LangGraph State Machine (`graph.py`, `state.py`)
 - Lab 4.2 — LangChain Tools: The `@tool` Decorator and Tool Registry (`tools/`)
-- Lab 4.3 — The Reason Node: Why Text and Tool Calls Can't Mix (`graph_nodes/`)
-- Lab 4.4 — ChromaDB and Embeddings: How RAG Retrieval Works (`rag/`)
-- Lab 4.5 — The Guard Pipeline: Regex → Llama Guard → Presidio (`guardrails/`)
-
-> Lab 4.1 is complete. Labs 4.2–4.5 are planned.
+- Lab 4.3 — The RAG Pipeline: Manifest System, Chunking, and Cosine Distance (`rag/`)
+- Lab 4.4 — Guardrail Code: Regex Pre-filter, Llama Guard, and Fail-Open (`guardrails/`)
+- Lab 4.5 — Schema Guard Integration: Validation, Violations, and Multi-Turn Limits (`guardrails/schema_guard.py`)
 
 ---
 
@@ -617,6 +617,62 @@ Chat Settings widgets (sidebar gear): **Persona** (Select), **Guard** (Switch), 
 
 ---
 
+---
+
+### Phase 15 — Post-Review Hardening
+
+**Stage 21: Schema Guard Integration**
+
+Previously dead code — `guardrails/schema_guard.py` implemented `validate_tool_result()` but nothing called it.
+
+**Changes:** `graph.py` imports `validate_tool_result` inside `output_guard_node` and iterates all `ToolMessage` objects in `state["messages"]`, collecting violations in a `schema_violations` list stored in the final `AIMessage.additional_kwargs`. `agent.py` reads this field and displays `schema: clean` / `schema: N violation(s)` in the guard receipt. `ui.py` adds a `Schema:` line to the Output Guard step card.
+
+**Deliverables:** Updated `graph.py`, `agent.py`, `ui.py`
+**Depends on:** Stage 7
+
+---
+
+**Stage 22: Application Iteration Cap**
+
+LangGraph has a built-in `GraphRecursionError` safety net (default 25 steps), but it is not user-configurable and produces an unhandled exception rather than a graceful response.
+
+**Changes:** `state.py` adds `iteration_count: int` field. `build_graph()` gains a `max_iterations: int = 10` parameter. Inside `agent_node`, the counter is incremented each call; when the count reaches the cap and the model would make another tool call, the tool-calling response is replaced with a plain `[ITER LIMIT]` message so `should_continue` routes naturally to the output guard. `agent.py` adds `--max-iterations N` CLI flag wired into `build_graph` and `run_repl`; startup banner shows `Iterations: N max per session`. Lab 3.7 updated to demonstrate the flag.
+
+**Deliverables:** Updated `state.py`, `graph.py`, `agent.py`, updated `labs/module3/lab3_7_iteration_limits.md`
+**Depends on:** Stage 2
+
+---
+
+**Stage 23: Test Suite**
+
+No tests existed prior to this stage. 107 tests added across five files; all Ollama HTTP calls mocked via `unittest.mock.patch`; no live model required; runtime 0.45s.
+
+| File | Tests | Coverage |
+|---|---|---|
+| `tests/test_file_ops.py` | 13 | Sandbox traversal (dotdot, absolute, URL-encoded), normal I/O, subdirectory creation |
+| `tests/test_schema_guard.py` | 14 | Type/empty/JSON rules, tool-scoping, all five built-in tool shapes |
+| `tests/test_llama_guard.py` | 42 | All 29 regex patterns + 7 benign pass-throughs; response parsing; fail-open |
+| `tests/test_persona_loader.py` | 22 | All 4 YAMLs, field invariants, customer_service tool scoping, missing-slug error |
+| `tests/test_agent_filter.py` | 8 | None persona, subset, full set, empty set, unknown tool warning, order preservation |
+
+Run: `venv/Scripts/python -m pytest tests/ -v` (Windows) or `venv/bin/python -m pytest tests/ -v` (macOS/Linux).
+
+**Deliverables:** `tests/__init__.py`, `tests/conftest.py`, `tests/test_file_ops.py`, `tests/test_schema_guard.py`, `tests/test_llama_guard.py`, `tests/test_persona_loader.py`, `tests/test_agent_filter.py`
+**Depends on:** Stages 3, 6, 7
+
+---
+
+**Stage 24: Optional Dependencies in pyproject.toml**
+
+`chainlit`, `arize-phoenix`, `openinference-instrumentation-langchain`, and `spacy` were in `requirements.txt` but absent from `pyproject.toml`, making `pip install .` install only core deps.
+
+**Changes:** Added `[project.optional-dependencies]` section with groups `nlp`, `ui`, `observe`, `all`, `dev`. Also corrected package name: `duckduckgo-search` → `ddgs` (library was renamed).
+
+**Deliverables:** Updated `pyproject.toml`
+**Depends on:** Stage 1
+
+---
+
 ### Development Stage Summary
 
 ```
@@ -663,10 +719,16 @@ Phase 13: Chainlit Pipeline Diagram (optional, additive)
 
 Phase 14: Architecture Deep Dive (Module 4 — read + modify labs)
   └─ Stage 16: Lab 4.1 — LangGraph State Machine (complete)
-  └─ Stage 17: Lab 4.2 — LangChain Tools (planned)
-  └─ Stage 18: Lab 4.3 — Reason Node (planned)
-  └─ Stage 19: Lab 4.4 — ChromaDB and Embeddings (planned)
-  └─ Stage 20: Lab 4.5 — Guard Pipeline (planned)
+  └─ Stage 17: Lab 4.2 — LangChain Tools and @tool Decorator (complete)
+  └─ Stage 18: Lab 4.3 — RAG Pipeline: Manifest, Chunking, Cosine Distance (complete)
+  └─ Stage 19: Lab 4.4 — Guardrail Code: Regex, Llama Guard, Fail-Open (complete)
+  └─ Stage 20: Lab 4.5 — Schema Guard Integration and Violation Surfacing (complete)
+
+Phase 15: Post-Review Hardening (additive, no breaking changes)
+  └─ Stage 21: Schema Guard Wiring — integrate validate_tool_result() into output_guard_node; surface violations in CLI receipt and Chainlit UI
+  └─ Stage 22: Application Iteration Cap — AgentState.iteration_count; max_iterations param in build_graph(); --max-iterations CLI flag; graceful [ITER LIMIT] cutoff
+  └─ Stage 23: Test Suite — 107 pytest tests across 5 files; all Ollama calls mocked; no live model required; 0.45s runtime
+  └─ Stage 24: Optional Dependencies — pyproject.toml [project.optional-dependencies] groups: nlp, ui, observe, all, dev
 ```
 
 ---

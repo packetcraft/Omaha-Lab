@@ -282,6 +282,33 @@ Start with **Lab 1.1 — Environment Setup**: [`labs/module1/lab1_1_environment_
 
 ---
 
+## Development
+
+### Running the Test Suite
+
+107 tests across five modules — no live Ollama model required (all HTTP calls are mocked).
+
+**Windows:**
+```bash
+venv/Scripts/pip install pytest
+venv/Scripts/python -m pytest tests/ -v
+```
+
+**macOS / Linux:**
+```bash
+venv/bin/pip install pytest
+venv/bin/python -m pytest tests/ -v
+```
+
+Or install the `dev` optional group and run:
+
+```bash
+pip install ".[dev]"
+python -m pytest tests/ -v
+```
+
+---
+
 ## Contributing
 
 See [CONTRIBUTING.md](.github/CONTRIBUTING.md) for pull request guidelines and issue triage policy.

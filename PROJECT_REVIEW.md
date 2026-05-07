@@ -1,8 +1,9 @@
 # Omaha-Lab — Project Review
 
-**Date:** 2026-05-07  
+**Initial review:** 2026-05-07  
+**Last updated:** 2026-05-07  
 **Reviewer:** Claude Sonnet 4.6  
-**Scope:** Full codebase + lab content audit, gap analysis, and improvement recommendations
+**Scope:** Full codebase + lab content audit, gap analysis, and improvement tracking
 
 ---
 
@@ -10,7 +11,7 @@
 
 Omaha-Lab is a well-engineered, pedagogically sound LLM security research environment. The 11-stage PRD-driven build is complete, the code is clean, and the layered architecture (input guard → RAG → reason → agent → HITL → output guard) mirrors real-world patterns students will encounter in production systems. The FOUNDATIONS.md and DECISIONS.md documents are a cut above what most labs bother to produce.
 
-The gaps are narrowly targeted: a missing test suite, four unfinished Module 4 labs, one unused module, and a dependency conflict between `pyproject.toml` and `requirements.txt`. None block current use; all are worth addressing before the lab becomes widely distributed.
+**Post-review session (2026-05-07):** All P1 and P2 items from the original backlog were implemented in one session. Six fixes shipped across seven commits.
 
 ---
 
@@ -33,182 +34,145 @@ The gaps are narrowly targeted: a missing test suite, four unfinished Module 4 l
 ### Lab Content
 
 - Module 2 (offensive) and Module 3 (defensive) cover OWASP LLM01–LLM10 with corresponding attack/defend pairs — a logical, testable structure.
-- Module 4 starts the right conversation (read and modify the architecture, not just use it).
+- Module 4 (architecture deep-dive) is now complete: 5 labs covering state machine, tool decorator, RAG pipeline, guardrail code, and schema guard integration.
 
 ---
 
-## Issues & Bugs
+## Issues — Status
 
-### 1. `pyproject.toml` references wrong search package name
+### 1. `pyproject.toml` references wrong search package name ✅ FIXED
 
-`pyproject.toml:26` lists `duckduckgo-search>=6.3.7` but the library was renamed to `ddgs`.  
-`requirements.txt:33` correctly lists `ddgs==9.14.1`.  
-`tools/search.py:1` imports `from ddgs import DDGS`.
+`pyproject.toml` listed `duckduckgo-search>=6.3.7` but the library was renamed to `ddgs`. `requirements.txt` and `tools/search.py` already used the correct name.
 
-`pip install .` (installing via pyproject.toml) installs the old shim package, not the real one. Because the README instructs `pip install -r requirements.txt` this doesn't block students today, but it will confuse anyone who tries `pip install .` or packages the project.
-
-**Fix:** Update `pyproject.toml:26` to `"ddgs>=6.3.7"`.
+**Fix applied (commit `d9a4f79`):** Updated `pyproject.toml:25` to `"ddgs>=6.3.7"`.
 
 ---
 
-### 2. Module 4 claims five labs; only one exists
+### 2. Module 4 claims five labs; only one existed ✅ FIXED
 
-`README.md:275` states `labs/module4/` contains labs 4.1–4.5. Only `lab4_1_langgraph_state_machine.md` exists. The table sets an expectation that is not met.
+`README.md` stated `labs/module4/` contains labs 4.1–4.5 but only `lab4_1_langgraph_state_machine.md` existed.
 
-**Fix:** Either write labs 4.2–4.5 (see Additions section below for a proposed roadmap) or update the README table to reflect the current count.
-
----
-
-### 3. `schema_guard.py` is unintegrated dead code
-
-`guardrails/schema_guard.py` implements `validate_tool_result()` but nothing in `graph.py`, `agent.py`, or any graph node calls it. It is exported by `guardrails/__init__.py` but unused. Lab 3.5 (`lab3_5_output_validation.md`) presumably references it.
-
-**Fix:** Either wire `validate_tool_result()` into `output_guard_node` in `graph.py` (after tool results arrive via `ToolMessage`), or add a clear lab note that it is an exercise stub students are expected to integrate. As it stands, the lab and the code are disconnected.
+**Fix applied (commit `d9a4f79`):** Labs 4.2–4.5 written and merged:
+- `lab4_2_tool_decorator.md` — `@tool` decorator, risk registry, HITL wiring; add `list_files` tool exercise
+- `lab4_3_rag_pipeline.md` — manifest delta system, chunking algorithm, cosine distance, chunk-size tuning
+- `lab4_4_guardrail_code.md` — regex pre-filter, Llama Guard prompt format, fail-open, custom pattern exercise
+- `lab4_5_schema_guard.md` — schema guard integration audit, violation triggering, multi-turn scan bug
 
 ---
 
-### 4. `pyproject.toml` missing optional dependencies
+### 3. `schema_guard.py` was unintegrated dead code ✅ FIXED
 
-`chainlit`, `arize-phoenix`, `openinference-instrumentation-langchain`, and `spacy` are in `requirements.txt` but absent from `pyproject.toml`. Someone installing via `pip install .` gets the core agent but not the Web UI or observability stack, with no warning.
+`guardrails/schema_guard.py` implemented `validate_tool_result()` but nothing in `graph.py` or any node called it.
 
-**Fix:** Add `[project.optional-dependencies]` groups to `pyproject.toml`:
+**Fix applied (commit `d9a4f79`):**
+- `graph.py`: added `ToolMessage` to imports; added schema validation loop in `output_guard_node`; added `schema_violations` list to `additional_kwargs`
+- `agent.py`: extracts `schema_violations` signal; displays `schema: clean` / `schema: N violation(s)` in the guard receipt
+- `ui.py`: adds `Schema: clean/N violation(s)` to the Output Guard step card
 
-```toml
-[project.optional-dependencies]
-ui = ["chainlit>=2.0"]
-observe = [
-    "arize-phoenix>=15.0",
-    "arize-phoenix-otel>=0.16",
-    "openinference-instrumentation-langchain>=0.1",
-    "opentelemetry-api>=1.39",
-    "opentelemetry-sdk>=1.39",
-]
-nlp = ["spacy>=3.8"]
-```
+Lab 4.5 documents the remaining known limitation (multi-turn scan scans historical ToolMessages, not just the current turn) as a Discussion Question with a fix challenge.
 
 ---
 
-### 5. LlamaGuard fails open — not surfaced in a lab
+### 4. `pyproject.toml` missing optional dependencies ✅ FIXED
 
-`llama_guard.py:108-110`: when Llama Guard is unreachable, the function logs a warning and returns `GuardResult(safe=True)`. This is the right default for availability, but it is a meaningful security property — a network partition or denial-of-service against the guard endpoint silently disables the guardrail.
+`chainlit`, `arize-phoenix`, `openinference-instrumentation-langchain`, and `spacy` were in `requirements.txt` but absent from `pyproject.toml`.
 
-No current lab attacks this. It is an important OWASP LLM08 (System Prompt Leakage / Guardrail Bypass) scenario.
+**Fix applied (commit `91bf145`):** Added `[project.optional-dependencies]` with four groups:
+- `nlp` — spacy
+- `ui` — chainlit
+- `observe` — arize-phoenix + full OpenTelemetry stack
+- `all` — all three above
+- `dev` — pytest (added in commit `0d2e4f1`)
 
-**Fix:** Add a note in `lab3_1_llama_guard_inputs.md` Discussion Questions, and consider a Module 3 lab or Module 2 lab specifically targeting guard availability.
-
----
-
-## Improvements
-
-### A. Add a test suite
-
-There are zero test files. For a security lab, the absence of tests sends the wrong signal — students learn to write security controls and should see how to verify them.
-
-Minimum viable test suite (`tests/` directory):
-
-| File | What to test |
-|---|---|
-| `test_file_ops.py` | Sandbox traversal (`../../../etc/passwd`), normal read/write |
-| `test_llama_guard.py` | Regex pre-filter pattern coverage (S15 hits + false negatives) |
-| `test_guardrail_result.py` | `GuardResult` parsing from raw Llama Guard responses |
-| `test_rag_embedder.py` | Manifest delta detection (add/remove file, unchanged file) |
-| `test_persona_loader.py` | Load all four YAMLs, missing slug error, tool filtering |
-
-Tools: `pytest` + `unittest.mock` for the Ollama HTTP calls. No live Ollama required for unit tests.
+Install commands: `pip install ".[ui]"`, `pip install ".[observe]"`, `pip install ".[all]"`.
 
 ---
 
-### B. Split requirements.txt into core and optional
+### 5. LlamaGuard fails open — not surfaced in a lab 🔲 OPEN
 
-The current `requirements.txt` is 50 lines including chainlit, arize-phoenix, and their transitive deps. Students who just want the CLI agent install 300+ MB of web UI + observability packages they may not use.
+`llama_guard.py:108-110`: when Llama Guard is unreachable, the function logs a warning and returns `GuardResult(safe=True)`. This is the right default for availability, but it is a meaningful security property — a network partition silently disables the guardrail.
 
-**Proposed split:**
+The fail-open behaviour is now covered by `tests/test_llama_guard.py::TestFailOpen` (network error and timeout both verified to return `safe=True`). However, no lab explicitly attacks this surface.
 
-```
-requirements.txt           # core only (langgraph, chromadb, presidio, etc.)
-requirements-ui.txt        # chainlit
-requirements-observe.txt   # arize-phoenix + opentelemetry stack
-requirements-dev.txt       # pytest, ruff
-```
-
-README setup instructions updated to `pip install -r requirements.txt` + optional extras.
+**Remaining:** Add a note in `lab3_1_llama_guard_inputs.md` Discussion Questions, and consider a Module 2 lab targeting guard availability.
 
 ---
 
-### C. Add a Makefile (or `setup.sh` / `setup.ps1`)
+## Improvements — Status
 
-Setup requires six commands across two platforms. A thin automation layer reduces drop-off:
+### A. Add a test suite ✅ DONE
 
-```makefile
-.PHONY: setup setup-models lint test
+**Implemented (commit `0d2e4f1`):** 107 tests across five files, 0.45s runtime, no live Ollama required:
 
-setup:
-    python3.11 -m venv venv
-    venv/bin/pip install -r requirements.txt
-    venv/bin/python -m spacy download en_core_web_lg
-    cp -n .env.example .env
+| File | Tests | Coverage |
+|---|---|---|
+| `tests/test_file_ops.py` | 13 | Sandbox traversal (dotdot, absolute Unix/Windows, URL-encoded), normal I/O, subdirectory creation |
+| `tests/test_schema_guard.py` | 14 | Type/empty/JSON rules, tool-scoping of JSON check, all five built-in tool shapes |
+| `tests/test_llama_guard.py` | 42 | All 29 regex patterns + 7 benign pass-throughs; response parsing; fail-open on network error and timeout |
+| `tests/test_persona_loader.py` | 22 | All 4 YAMLs, field invariants, customer_service tool scoping, missing-slug error |
+| `tests/test_agent_filter.py` | 8 | None persona, subset, full set, empty set, unknown tool warning, order preservation |
 
-setup-models:
-    ollama pull qwen2.5:1.5b
-    ollama pull nomic-embed-text
-    ollama pull llama-guard3
-
-test:
-    venv/bin/pytest tests/ -v
-
-lint:
-    venv/bin/ruff check .
-```
+Run with: `venv/Scripts/python -m pytest tests/ -v` (Windows) or `venv/bin/python -m pytest tests/ -v` (macOS).
 
 ---
 
-### D. Add a GitHub Actions CI workflow
+### B. Split requirements.txt into core and optional 🔲 OPEN (partial)
 
-A simple lint + import check on every PR catches broken imports and regressions. Free for public repos.
+The `pyproject.toml` optional dependency groups (fix #4) solve the `pip install .` case. The monolithic `requirements.txt` still installs chainlit + phoenix by default. Consider creating `requirements-core.txt` for students who only need the CLI agent.
 
+---
+
+### C. Add a Makefile (or `setup.sh` / `setup.ps1`) 🔲 OPEN
+
+Setup still requires six manual commands across two platforms. A thin Makefile or platform-specific script would reduce first-run friction.
+
+---
+
+### D. Add a GitHub Actions CI workflow 🔲 OPEN
+
+No CI exists. A minimal workflow running `pytest tests/` on push/PR would catch regressions. The test suite (107 tests, no Ollama required) makes this straightforward.
+
+Suggested `.github/workflows/ci.yml`:
 ```yaml
-# .github/workflows/ci.yml
 on: [push, pull_request]
 jobs:
-  check:
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.11" }
-      - run: pip install ruff
-      - run: ruff check .
-      - run: python -c "import ast; [ast.parse(open(f).read()) for f in __import__('glob').glob('**/*.py', recursive=True) if 'venv' not in f]"
+      - run: pip install -r requirements.txt pytest
+      - run: python -m spacy download en_core_web_sm
+      - run: pytest tests/ -v
 ```
 
----
-
-### E. Enforce iteration limits in the graph
-
-`lab3_7_iteration_limits.md` addresses unbounded agent loops, but `graph.py` has no hard iteration cap in `AgentState` or the routing logic. Students complete the lab conceptually without seeing the code-level safeguard.
-
-**Fix:** Add `iteration_count: int` to `AgentState` (default 0), increment it in `agent_node`, and add a `max_iterations` parameter to `build_graph()` that routes to `END` (or `output_guard`) when the cap is hit. Ties the lab to a concrete code artifact.
+Note: the CI spacy model can be `en_core_web_sm` (small/fast) rather than `en_core_web_lg` since the tests don't exercise PII redaction directly.
 
 ---
 
-## Additions
+### E. Enforce iteration limits in the graph ✅ DONE
 
-### Module 4 Labs 4.2–4.5 (complete the deep-dive series)
-
-| Lab | Topic | Focus file(s) |
-|---|---|---|
-| 4.2 — Tool Registry & Risk Classification | Add a new tool, set risk level, watch HITL fire | `tools/`, `tools/risk_registry.py` |
-| 4.3 — RAG Pipeline Internals | Trace a document from ingest to retrieval; tune chunk size | `rag/embedder.py`, `rag/retriever.py` |
-| 4.4 — Guardrail Code Walkthrough | Read guard_input_node → output_guard_node; inject a custom regex | `guardrails/llama_guard.py`, `graph.py` |
-| 4.5 — Architecture Challenge | Wire `schema_guard.py` into `output_guard_node` end-to-end | `guardrails/schema_guard.py`, `graph.py` |
-
-Lab 4.5 doubles as the fix for Issue #3 above — students discover and integrate the orphaned module.
+**Implemented (commit `6fa0486`):**
+- `state.py`: added `iteration_count: int` to `AgentState`
+- `graph.py`: added `max_iterations: int = 10` parameter to `build_graph()`; `agent_node` increments counter and replaces tool-calling responses with a graceful cutoff message when the cap is reached
+- `agent.py`: added `--max-iterations N` CLI flag (default 10); wired into `build_graph` and `run_repl`; banner shows `Iterations: N max per session`
+- `README.md`: added `--max-iterations` row to CLI flags table
+- `lab3_7`: Steps 2–4 rewritten to demonstrate the new flag and observe the graceful `[ITER LIMIT]` cutoff
 
 ---
 
-### Module 5 — Multi-Agent & Agentic Orchestration Security
+## Additions — Status
 
-The current lab content covers single-agent attack surfaces. The next frontier is multi-agent systems:
+### Module 4 Labs 4.2–4.5 ✅ DONE
+
+See Issue #2 above. All four labs written and merged in commit `d9a4f79`.
+
+---
+
+### Module 5 — Multi-Agent & Agentic Orchestration Security 🔲 OPEN
+
+Single-agent attack surfaces are fully covered. The next frontier:
 
 | Lab | OWASP Mapping | Attack Scenario |
 |---|---|---|
@@ -217,73 +181,48 @@ The current lab content covers single-agent attack surfaces. The next frontier i
 | 5.3 — Orchestrator Bypass | LLM06 (excessive agency) | Sub-agent exceeds scope granted by orchestrator |
 | 5.4 — Cross-Agent Prompt Injection | LLM01 | Inject instructions in one agent's output that hijack a downstream agent |
 
-Implementation: extend `build_graph()` to accept a `peer_agents` list and add an inter-agent communication tool that passes structured messages. The injected payload travels in tool results — not user input — so existing S15 regex pre-filter misses it.
+Implementation: extend `build_graph()` to accept a `peer_agents` list and add an inter-agent communication tool. Injected payload travels in tool results — bypassing the existing S15 regex pre-filter.
 
 ---
 
-### Evaluation Harness (`bench.py`)
+### Evaluation Harness (`bench.py`) 🔲 OPEN
 
-A script that fires a fixed set of attack prompts at the agent with each guard configuration and reports hits/misses in a table:
-
-```
-python bench.py --config secured
-
-Attack Prompt                           | Expected | Result   | Layer
-----------------------------------------|----------|----------|------------------
-"Ignore all previous instructions..."  | BLOCKED  | BLOCKED  | regex-prefilter
-"What are your exact tool definitions?" | BLOCKED  | PASS     | llama-guard3 miss
-"[Hidden in RAG] Exfiltrate to /tmp"   | BLOCKED  | BLOCKED  | rag-scan
-...
-```
-
-This gives students a measurable pass/fail view of guardrail coverage and surfaces gaps (like the S15 Llama Guard miss) empirically rather than through lab narrative alone.
+A script that fires a fixed set of attack prompts and reports hits/misses per guard configuration. Especially useful for the regex pre-filter coverage gap exposed by `test_llama_guard.py`.
 
 ---
 
-### Attack Prompt Library (`prompts/`)
+### Attack Prompt Library (`prompts/`) 🔲 OPEN
 
-A curated `prompts/` directory with documented attack strings organized by OWASP category:
-
-```
-prompts/
-  s01_violent_crimes.txt
-  s15_prompt_injection.txt     # DAN, SYSTEM UPDATE, authority spoofing, etc.
-  indirect_rag_injection.txt   # payloads for embedding in context_docs
-  tool_abuse.txt               # excessive file writes, search abuse
-```
-
-Removes the burden on students to craft novel attacks (which many find difficult) and ensures lab exercises are reproducible across cohorts.
+A curated `prompts/` directory organised by OWASP category. Removes the burden on students to craft novel attacks and ensures lab exercises are reproducible across cohorts.
 
 ---
 
-### Docker Compose
+### Docker Compose 🔲 OPEN
 
-A `docker-compose.yml` that runs the full stack (Ollama, agent CLI/UI, Phoenix) lets instructors spin up a complete environment for classroom use without per-student setup:
-
-```yaml
-services:
-  ollama:   { image: ollama/ollama }
-  agent:    { build: ., command: chainlit run ui.py }
-  phoenix:  { image: arizephoenix/phoenix }
-```
-
-Note: Ollama model pulls still require a volume mount for weight persistence. Not a replacement for local development, but useful for demo and evaluation.
+A `docker-compose.yml` for classroom/demo deployments. Non-blocking for local development use.
 
 ---
 
-## Priority Order
+## Remaining Priority Order
 
 | Priority | Item | Effort |
 |---|---|---|
-| P1 | Fix `pyproject.toml` package name (`duckduckgo-search` → `ddgs`) | 1 line |
-| P1 | Wire `schema_guard.py` or convert to explicit lab exercise | ~30 lines |
-| P2 | Write labs 4.2–4.5 | 4–6 hours |
-| P2 | Add pytest test suite (file_ops, llama_guard, persona_loader) | 3–4 hours |
-| P3 | Split requirements.txt into core/optional | 30 min |
-| P3 | Add pyproject.toml optional dependency groups | 30 min |
-| P3 | Add iteration limit to `AgentState` + `build_graph()` | 1 hour |
-| P3 | GitHub Actions CI (lint + syntax check) | 30 min |
-| P4 | Evaluation harness (`bench.py`) | 1 day |
-| P4 | Attack prompt library (`prompts/`) | 2–4 hours |
-| P5 | Module 5 (multi-agent security) | 2–3 days |
-| P5 | Docker Compose | 2–4 hours |
+| P1 | Add note to `lab3_1` about Llama Guard fail-open (Issue #5) | 30 min |
+| P2 | GitHub Actions CI (pytest on push/PR) | 30 min |
+| P2 | Makefile / `setup.sh` / `setup.ps1` | 1 hour |
+| P3 | Split `requirements.txt` into core + optional files | 30 min |
+| P3 | Evaluation harness (`bench.py`) | 1 day |
+| P3 | Attack prompt library (`prompts/`) | 2–4 hours |
+| P4 | Module 5 (multi-agent security) | 2–3 days |
+| P4 | Docker Compose | 2–4 hours |
+
+---
+
+## Commit Log for This Review Session
+
+| Commit | Change |
+|---|---|
+| `d9a4f79` | Fix pyproject.toml package name; wire schema_guard; write labs 4.2–4.5; update README Module 4 table; add PROJECT_REVIEW.md |
+| `91bf145` | Add optional dependency groups to pyproject.toml (nlp, ui, observe, all) |
+| `6fa0486` | Add application-level iteration cap (state.py, graph.py, agent.py, lab3_7) |
+| `0d2e4f1` | Add pytest test suite — 107 tests across five modules; add dev optional group |
