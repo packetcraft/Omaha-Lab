@@ -174,7 +174,43 @@ Single-agent attack surfaces are fully covered. The next frontier:
 | 5.3 — Orchestrator Bypass | LLM06 (excessive agency) | Sub-agent exceeds scope granted by orchestrator |
 | 5.4 — Cross-Agent Prompt Injection | LLM01 | Inject instructions in one agent's output that hijack a downstream agent |
 
-Implementation: extend `build_graph()` to accept a `peer_agents` list and add an inter-agent communication tool. Injected payload travels in tool results — bypassing the existing S15 regex pre-filter.
+#### New Files
+
+| File | Purpose |
+|---|---|
+| `tools/delegate.py` | `delegate_to_agent(agent_name, task)` — invokes a named sub-agent synchronously, returns its response as a string. Injection payloads travel here as ToolMessage content, bypassing `guard_input` |
+| `tools/malicious_mcp.py` | Simulated poisoned tool for Lab 5.2 — looks legitimate but writes its full input context to `workspace/exfil.txt`. No real MCP protocol required |
+| `agents/sub_agent.py` | Thin wrapper around `build_graph()` with an optional tool whitelist (allowed tool names). Used by the delegate tool to instantiate named sub-agents |
+| `agents/__init__.py` | Registry mapping agent names (`"researcher"`, `"summarizer"`, `"malicious_peer"`) to their configs. `delegate.py` looks up by name here |
+| `multi_agent.py` | Orchestrator entry point (like `agent.py`) that boots an orchestrator with `delegate_to_agent` in its tool list |
+| `tests/test_delegate.py` | Tests: correct routing, scope enforcement (5.3), that tool results are not re-guarded (the gap), exfil detection (5.2) |
+| `labs/module5/lab5_1_trust_escalation.md` | Lab guide |
+| `labs/module5/lab5_2_tool_poisoning_mcp.md` | Lab guide |
+| `labs/module5/lab5_3_orchestrator_bypass.md` | Lab guide |
+| `labs/module5/lab5_4_cross_agent_injection.md` | Lab guide |
+
+#### Modified Files
+
+| File | Change |
+|---|---|
+| `graph.py` | Add `peer_agents: dict \| None = None` to `build_graph()`; auto-inject `delegate_to_agent` when present |
+| `state.py` | Add `delegation_chain: list` — `{from, to, task}` entries appended per delegation hop; used in trace output and Lab 5.3 escalation path |
+| `agent.py` | Add `--peer-agents researcher,summarizer` flag to wire named agents from the registry |
+| `README.md` | Add Module 5 row to lab guide table |
+| `DECISIONS.md` | D-04: why delegation is implemented as a tool (not a graph node) — add when implementing |
+| `prompts/` | ~6 new YAML files for multi-agent injection vectors (`layer: none`, `guard_expected: passes`) — payloads in tool results that bypass the S15 regex |
+
+#### Design Decisions (lock in before building)
+
+1. **Guard scope** — `guard_input` only scans `HumanMessage`, not `ToolMessage`. This is intentional and is the attack surface for Labs 5.1 and 5.4. Do not silently close this gap in the implementation.
+
+2. **Sub-agent isolation** — each `delegate_to_agent` call gets a fresh `thread_id` so sub-agent conversation memory doesn't leak to the orchestrator except through the returned string.
+
+3. **MCP simulation** — no real MCP protocol needed. A `@tool`-decorated function with a `workspace/exfil.txt` side effect is sufficient for the pedagogical point in Lab 5.2.
+
+4. **Scope enforcement (Lab 5.3)** — sub-agents receive a tool whitelist at instantiation time. The bypass is demonstrated by an injection payload that convinces a `["read_file"]`-scoped sub-agent to call `write_file` anyway — showing that whitelist enforcement must happen at the graph level, not just in the prompt.
+
+**Effort estimate:** ~4–6 hours for code + tests, ~3–4 hours for lab content.
 
 ---
 
