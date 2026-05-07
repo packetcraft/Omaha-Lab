@@ -279,7 +279,7 @@ The lab guide is organized into three modules:
 |---|---|---|
 | [Module 1 — Foundations](labs/module1/) | Environment setup, first agent, personas, RAG, Phoenix observability, Chainlit diagram | 1.1 – 1.7 |
 | [Module 2 — Offensive Security](labs/module2/) | OWASP attack exercises (LLM01–LLM10) | 2.1 – 2.9 |
-| [Module 3 — Defensive Architecture](labs/module3/) | Enable and validate each guardrail layer | 3.1 – 3.9 |
+| [Module 3 — Defensive Architecture](labs/module3/) | Enable and validate each guardrail layer; measure coverage with the evaluation harness | 3.1 – 3.10 |
 | [Module 4 — Architecture & Framework Deep Dive](labs/module4/) | Read and modify the core code — LangGraph, tools, RAG, guardrails | 4.1 – 4.5 (4.1: state machine · 4.2: tool decorator · 4.3: RAG pipeline · 4.4: guardrail code · 4.5: schema guard) |
 
 Start with **Lab 1.1 — Environment Setup**: [`labs/module1/lab1_1_environment_setup.md`](labs/module1/lab1_1_environment_setup.md)

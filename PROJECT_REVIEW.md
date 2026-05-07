@@ -180,7 +180,7 @@ Implementation: extend `build_graph()` to accept a `peer_agents` list and add an
 
 ### Evaluation Harness (`bench.py`) ✅ DONE
 
-**Implemented:** `bench.py` — loads all YAML files from `prompts/` and fires each against the guard stack.
+**Implemented:** `bench.py` + `labs/module3/lab3_10_bench_coverage.md` — loads all YAML files from `prompts/` and fires each against the guard stack.
 
 Two modes:
 - **`--regex-only`** — tests the regex pre-filter only; no Ollama required; instant (0.15s for all 26 prompts)
