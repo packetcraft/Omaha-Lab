@@ -1,6 +1,6 @@
 from __future__ import annotations
 import os
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_ollama import ChatOllama
 from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode
@@ -149,6 +149,7 @@ def build_graph(
 
     if presidio_guard is not None:
         from guardrails import canary as _canary
+        from guardrails.schema_guard import validate_tool_result as _validate_tool
 
         def output_guard_node(state: AgentState) -> dict:
             msgs = state["messages"]
@@ -168,6 +169,14 @@ def build_graph(
                     "in this response — possible data exfiltration]"
                 )
 
+            # Schema validation: check every ToolMessage in state for malformed results.
+            schema_violations: list[str] = []
+            for m in msgs:
+                if isinstance(m, ToolMessage):
+                    ok, err = _validate_tool(getattr(m, "name", "tool"), m.content)
+                    if not ok:
+                        schema_violations.append(err)
+
             # Always return the message so _print_event can display [RESPOND]
             # and carry redaction signals for the guard receipt.
             # same id → add_messages deduplicates cleanly when nothing changed.
@@ -177,6 +186,7 @@ def build_graph(
                 additional_kwargs={
                     "presidio_redacted": presidio_changed,
                     "canary_triggered":  bool(found),
+                    "schema_violations": schema_violations,
                 },
             )]}
 

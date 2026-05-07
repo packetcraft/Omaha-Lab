@@ -489,12 +489,15 @@ async def _handle_event(event: dict, use_guard: bool) -> str | None:
                     final_text = content if isinstance(content, str) else str(content or "")
 
                 elif node_name == "output_guard":
-                    redacted = msg.additional_kwargs.get("presidio_redacted", False)
-                    canary   = msg.additional_kwargs.get("canary_triggered",  False)
+                    redacted   = msg.additional_kwargs.get("presidio_redacted", False)
+                    canary     = msg.additional_kwargs.get("canary_triggered",  False)
+                    violations = msg.additional_kwargs.get("schema_violations",  [])
+                    schema_str = f"{len(violations)} violation(s)" if violations else "clean"
                     async with cl.Step(name="Output Guard", type="tool") as step:
                         step.output = (
                             f"Presidio PII: {'redacted' if redacted else 'clean'} · "
-                            f"Canary: {'ALERT' if canary else 'clean'}"
+                            f"Canary: {'ALERT' if canary else 'clean'} · "
+                            f"Schema: {schema_str}"
                         )
                     content = msg.content
                     final_text = content if isinstance(content, str) else ""

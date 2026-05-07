@@ -97,6 +97,10 @@ def _print_guard_receipt(signals: dict, guard_enabled: bool) -> None:
     if "canary_triggered" in signals:
         cstatus = f"{C.RED}ALERT{C.GRAY}" if signals["canary_triggered"] else f"{C.GREEN}clean{C.GRAY}"
         parts.append(f"canary: {cstatus}")
+    if "schema_violations" in signals:
+        violations = signals["schema_violations"]
+        svstatus = f"{C.RED}{len(violations)} violation(s){C.GRAY}" if violations else f"{C.GREEN}clean{C.GRAY}"
+        parts.append(f"schema: {svstatus}")
 
     if parts:
         print(f"{C.GRAY}[Guard] {' | '.join(parts)}{C.RESET}")
@@ -174,8 +178,9 @@ def _print_event(event: dict, guard_enabled: bool = False, verbose_rag: bool = F
                     content = msg.content or ""
                     print(f"\n{C.GREEN}{C.BOLD}[RESPOND]{C.RESET} {C.GREEN}{content}{C.RESET}\n")
                     # Stage D3 — signals come from additional_kwargs set by the node
-                    signals["presidio_redacted"] = msg.additional_kwargs.get("presidio_redacted", False)
-                    signals["canary_triggered"]  = msg.additional_kwargs.get("canary_triggered", False)
+                    signals["presidio_redacted"]  = msg.additional_kwargs.get("presidio_redacted", False)
+                    signals["canary_triggered"]   = msg.additional_kwargs.get("canary_triggered", False)
+                    signals["schema_violations"]  = msg.additional_kwargs.get("schema_violations", [])
 
                 elif node_name == "agent" and not guard_enabled:
                     content = msg.content or ""
