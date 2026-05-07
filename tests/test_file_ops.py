@@ -1,4 +1,5 @@
 """Tests for tools/file_ops.py — sandbox path enforcement and basic I/O."""
+import sys
 import pytest
 from pathlib import Path
 
@@ -39,6 +40,7 @@ class TestReadFile:
         result = read_file.invoke({"filename": "/etc/passwd"})
         assert "escapes" in result.lower() or "error" in result.lower()
 
+    @pytest.mark.skipif(sys.platform != "win32", reason="Windows drive-letter paths are relative strings on Linux/macOS")
     def test_path_traversal_absolute_windows(self):
         result = read_file.invoke({"filename": "C:\\Windows\\system32\\drivers\\etc\\hosts"})
         assert "escapes" in result.lower() or "error" in result.lower()
