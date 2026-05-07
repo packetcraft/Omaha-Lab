@@ -11,7 +11,8 @@ This document records significant decisions made during the design and evolution
 | # | Decision | Status | Date |
 |---|---|---|---|
 | [D-01](#d-01--n8n-as-alternative-orchestration-platform) | n8n as alternative orchestration platform | Rejected | 2026-05-06 |
-| [D-02](#d-02--live-data-flow-visualization-for-student-learning) | Live data flow visualization for student learning | Pending implementation | 2026-05-06 |
+| [D-02](#d-02--live-data-flow-visualization-for-student-learning) | Live data flow visualization for student learning | Accepted | 2026-05-06 |
+| [D-03](#d-03--attack-prompt-library-schema-format-and-layer-taxonomy) | Attack prompt library: schema format and layer taxonomy | Accepted | 2026-05-07 |
 
 ---
 
@@ -56,7 +57,7 @@ Keep the Python/LangGraph core as-is and layer n8n on top as an orchestration/no
 ## D-02 — Live Data Flow Visualization for Student Learning
 
 **Date:** 2026-05-06
-**Status:** Pending implementation
+**Status:** Accepted — implemented (Phoenix: Stage 14; Mermaid diagram: Stage 15)
 
 ### Context
 
@@ -101,6 +102,48 @@ LangFuse is the upgrade path if the lab evolves toward multi-student deployments
 - Phoenix should be gated behind a `--observe on/off` CLI flag (default off) to keep Module 1 simple.
 - Mermaid diagram must reflect the active `--guard`, `--rag`, `--hitl` flags so it matches what the student actually launched.
 - Document both as optional enhancements in `labs/module1/lab1_6_visualizing_the_pipeline.md` rather than embedding in earlier labs.
+
+---
+
+## D-03 — Attack Prompt Library: Schema Format and Layer Taxonomy
+
+**Date:** 2026-05-07
+**Status:** Accepted
+
+### Context
+
+The attack prompt library (`prompts/`) needs a file format that serves two audiences simultaneously: students who paste prompts manually into the CLI, and the future `bench.py` evaluation harness that fires them programmatically and compares outcomes. The schema also needs a vocabulary for describing *which defence layer* catches a given prompt, since that is the key teaching distinction (regex vs. Llama Guard vs. HITL vs. model-level).
+
+### Options evaluated
+
+| Option | Format | Tradeoff |
+|---|---|---|
+| Plain `.txt` files | One prompt per file | Simple for students; zero machine-readable metadata — useless for bench.py |
+| Markdown with front-matter | YAML header + prose body | Readable; awkward for multi-line `prompt:` values with exact whitespace |
+| Single large JSON | All prompts in one array | Easy to parse; not human-editable; merge conflicts on every addition |
+| **One YAML file per prompt** | Structured metadata + freeform prompt text | Easy to edit individually; clean diffs; directly loadable by bench.py |
+
+### Decision
+
+**One YAML file per prompt**, organised into per-category subdirectories. Filenames follow `{type}-{sequence:03d}.yaml` (e.g., `direct-001.yaml`, `indirect-tool-001.yaml`).
+
+### Rationale
+
+**Format — YAML over JSON:** YAML's multi-line string literals (`prompt: |`) preserve exact whitespace and newlines without escaping, which matters when prompts contain special characters or formatting. JSON would require escaping every newline as `\n`, making multi-line prompts unreadable.
+
+**One file per prompt over a single catalogue file:** Each prompt has an independent lifecycle — new prompts are added, difficulty ratings change, notes are updated. A single file creates merge conflicts on every addition. One file per prompt means `git log -- prompts/llm01_prompt_injection/direct-001.yaml` shows the full history of that prompt.
+
+**`layer` field taxonomy:** The six values (`regex`, `llama_guard`, `hitl`, `presidio`, `model`, `none`) map directly to the six guard components in `graph.py`. This is the key teaching distinction — the same attack stopped at the regex layer costs zero LLM inference, while one stopped at `llama_guard` costs a full model call. `none` is deliberate: prompts with `layer: none` are the gaps, and they are the most important ones pedagogically.
+
+**`guard_expected` field:** Three values — `blocked`, `passes`, `varies`. `varies` is honest: outcomes depend on model temperature and Llama Guard version. The evaluation harness treats `varies` as a skip-scoring case rather than a pass/fail assertion.
+
+**`lab` field:** Every prompt cross-references the Module 2 or 3 lab that uses it. This enables navigation in both directions — from lab to prompt library, and from prompt to lab context. It also means removing a lab requires updating the prompt's `lab:` field, keeping the cross-references honest.
+
+### Implementation notes
+
+- `bench.py` should load all `*.yaml` files under `prompts/` recursively (e.g., `glob.glob("prompts/**/*.yaml", recursive=True)`)
+- The harness should skip prompts with `rag: true` unless ChromaDB is populated, and skip prompts with `hitl: true` unless running in non-interactive mode with auto-deny
+- Prompts that require workspace file setup (e.g., `indirect-file-001.yaml`) should include a `setup:` field in future versions — the current `notes:` field documents this inline
 
 ---
 
