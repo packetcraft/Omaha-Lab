@@ -186,6 +186,9 @@ python agent.py --persona security_analyst --rag on
 
 # 4. Full stack
 python agent.py --persona hr_assistant --rag on --guard on --hitl on
+
+# 5. Full stack with observability (start Phoenix first — see Observability section below)
+python agent.py --persona hr_assistant --rag on --guard on --hitl on --observe on
 ```
 
 **CLI flags:**
@@ -227,6 +230,40 @@ The sidebar gear icon exposes individual **Chat Settings** — Persona, Guard, R
 
 ---
 
+## Observability / LLM Traces (Optional)
+
+[Arize Phoenix](https://phoenix.arize.com) provides a local OpenTelemetry trace viewer that captures the raw input and output at every LangGraph node — the same pipeline stages shown in the CLI trace and Chainlit diagram, but with full token-level detail.
+
+Phoenix must run as a **separate, persistent server** before starting the agent. Open a dedicated terminal, activate the venv, and start it:
+
+```bash
+# Windows (Git Bash)
+venv/Scripts/python -m phoenix.server.main serve
+
+# macOS
+venv/bin/python -m phoenix.server.main serve
+```
+
+Phoenix opens at **http://127.0.0.1:6006**. Leave it running, then start the agent with the observe flag:
+
+```bash
+python agent.py --observe on
+```
+
+| What Phoenix shows | Where to look |
+|---|---|
+| Input / output at every LLM node | Span detail → Input messages / Output tabs |
+| Tool call arguments and results | `get_weather`, `web_search` spans |
+| Guard short-circuit (blocked input) | Trace terminates after `guard_input` span |
+| RAG retrieved chunks (full text) | `rag` span → Output tab |
+| Token counts and latency per node | Span header |
+
+Traces accumulate in a local SQLite database (`~/.phoenix/`) and persist across agent restarts as long as the Phoenix server stays running. See [Lab 1.6](labs/module1/lab1_6_visualizing_the_pipeline.md) for a full walkthrough.
+
+**Chainlit UI:** If Phoenix is already running when you start `chainlit run ui.py`, the Chainlit UI connects to it automatically — no `--observe` flag and no extra configuration needed. Every message sent through the browser will appear as a trace in Phoenix alongside any CLI traces. See [Lab 1.7](labs/module1/lab1_7_chainlit_pipeline_diagram.md) Step 1.
+
+---
+
 ## Lab Guide
 
 > **Before you begin:** Read [`FOUNDATIONS.md`](FOUNDATIONS.md) first. It establishes the CPU/OS/Harness mental model and the 5-stage agent evolution roadmap that every lab is built around. Each lab targets a specific architectural layer — knowing the map makes the attacks and defenses land.
@@ -235,9 +272,10 @@ The lab guide is organized into three modules:
 
 | Module | Focus | Labs |
 |---|---|---|
-| [Module 1 — Foundations](labs/module1/) | Environment setup, first agent, personas, RAG | 1.1 – 1.5 |
+| [Module 1 — Foundations](labs/module1/) | Environment setup, first agent, personas, RAG, Phoenix observability, Chainlit diagram | 1.1 – 1.7 |
 | [Module 2 — Offensive Security](labs/module2/) | OWASP attack exercises (LLM01–LLM10) | 2.1 – 2.9 |
 | [Module 3 — Defensive Architecture](labs/module3/) | Enable and validate each guardrail layer | 3.1 – 3.9 |
+| [Module 4 — Architecture & Framework Deep Dive](labs/module4/) | Read and modify the core code — LangGraph, tools, RAG, guardrails | 4.1 – 4.5 |
 
 Start with **Lab 1.1 — Environment Setup**: [`labs/module1/lab1_1_environment_setup.md`](labs/module1/lab1_1_environment_setup.md)
 

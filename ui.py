@@ -27,6 +27,28 @@ from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
 load_dotenv()
 
+# ---------------------------------------------------------------------------
+# Phoenix observability — wire automatically if the server is already running.
+# Silent no-op if Phoenix is not running (observability is optional).
+# Start Phoenix first in a dedicated terminal:
+#   venv/Scripts/python -m phoenix.server.main serve   (Windows)
+#   venv/bin/python -m phoenix.server.main serve       (macOS)
+# ---------------------------------------------------------------------------
+
+def _try_phoenix() -> None:
+    try:
+        from phoenix.otel import register
+        from openinference.instrumentation.langchain import LangChainInstrumentor
+        import requests as _req
+        _req.get("http://127.0.0.1:6006", timeout=2)
+        register(project_name="omaha-lab")
+        LangChainInstrumentor().instrument()
+    except Exception:
+        pass  # Phoenix not running — traces disabled for this session
+
+
+_try_phoenix()
+
 _BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 _MODEL    = os.getenv("OLLAMA_MODEL",    "qwen2.5:1.5b")
 

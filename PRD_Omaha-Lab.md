@@ -3,7 +3,7 @@
 **Subtitle:** A hands-on lab guide for local LLM security, agentic tool-calling, and OWASP mitigation.
 **Version:** 4.4
 **Status:** Draft
-**Last Updated:** 2026-04-29
+**Last Updated:** 2026-05-07
 
 ---
 
@@ -29,11 +29,12 @@ The platform serves two primary audiences: security practitioners who want a rea
 - Agentic orchestration via LangGraph (ReAct loop with tool calling)
 - Live internet-connected tools: web search, weather API, REST endpoints
 - Visual flow design via Langflow
-- Optional browser chat UI via Chainlit (renders agent steps visually; wraps existing CLI agent)
+- Optional browser chat UI via Chainlit (renders agent steps visually; wraps existing CLI agent; includes colour-coded pipeline diagram showing topology and per-turn execution path)
+- Optional local observability via Arize Phoenix (OpenTelemetry span tree; captures raw input/output at every LangGraph node; toggled via `--observe on`)
 - Security guardrails: Llama Guard 3, Microsoft Presidio, canary token detection, HITL breakpoints
 - Swappable agent personas (system prompt templates)
 - RAG pipeline using local Markdown documents as context
-- Lab guide (3 modules, 10 OWASP risk labs)
+- Lab guide (4 modules: 3 security modules + 1 architecture deep-dive module)
 
 ### 2.3 Out of Scope
 
@@ -291,6 +292,32 @@ The system must support retrieval-augmented generation using local Markdown file
 
 ---
 
+### Module 4: Architecture & Framework Deep Dive
+
+**Goal:** Read and modify the core code that powers every lab. Understand LangGraph, LangChain tools, the RAG pipeline, and guardrail layers at the implementation level.
+
+**Learning Objectives:**
+- Read `graph.py` and `state.py` and trace a message from entry point to response
+- Understand `AgentState` as the shared dictionary passed between all nodes
+- Identify conditional edges and routing functions (`should_continue`, `after_guard`)
+- Add and remove a logging node without breaking the graph
+- Predict which entry point is selected for any combination of CLI flags
+
+**Format:** Read + modify + observe. Each lab makes a small, targeted code change, runs the agent to observe the effect, then restores the original. No architectural knowledge required — only the ability to read Python.
+
+**Recommended timing:** After Module 1 for students who want early code exposure; after Module 3 for students who prefer full security context before going deep.
+
+**Labs:**
+- Lab 4.1 — Reading the LangGraph State Machine (`graph.py`, `state.py`)
+- Lab 4.2 — LangChain Tools: The `@tool` Decorator and Tool Registry (`tools/`)
+- Lab 4.3 — The Reason Node: Why Text and Tool Calls Can't Mix (`graph_nodes/`)
+- Lab 4.4 — ChromaDB and Embeddings: How RAG Retrieval Works (`rag/`)
+- Lab 4.5 — The Guard Pipeline: Regex → Llama Guard → Presidio (`guardrails/`)
+
+> Lab 4.1 is complete. Labs 4.2–4.5 are planned.
+
+---
+
 ### Module 2: Offensive Security
 
 **Goal:** Think like an attacker. Exploit common LLM vulnerabilities against realistic persona-driven agents with RAG context.
@@ -359,7 +386,7 @@ The system must support retrieval-augmented generation using local Markdown file
 | **Ollama Version** | Ollama 0.3.x or higher. Minimum version documented in README. |
 | **Langflow Version** | Langflow 1.x. Exported `.json` flows include the version they were built on. |
 | **Chainlit Version** | Chainlit 1.x. UI is optional; CLI path remains fully functional without it. |
-| **Phoenix Version** | Arize Phoenix 15.x. Observability is optional; all labs function without it. Phoenix runs fully locally — no data is transmitted to Arize cloud. Toggled via `--observe on/off` (default off). |
+| **Phoenix Version** | Arize Phoenix 15.x. Observability is optional; all labs function without it. Phoenix runs fully locally — no data is transmitted to Arize cloud. CLI: toggled via `--observe on/off` (default off). Chainlit UI: auto-connects if Phoenix is already running — no flag required. |
 | **Execution Environment** | macOS 13+ (Apple Silicon preferred) or Windows 11 with Git Bash. Intel Mac and Windows ARM not formally tested. |
 | **API Keys** | Weather and search integrations require free-tier API keys. Keys stored in `.env` (gitignored). `.env.example` provided. |
 | **Performance** | Agent round-trip (prompt → retrieval → tool call → response) must complete in < 15 seconds on minimum hardware in CPU mode. |
@@ -630,6 +657,16 @@ Phase 11: Reasoning Architecture (additive, no breaking changes)
 
 Phase 12: Observability (optional, additive)
   └─ Stage 14: Phoenix Pipeline Trace Viewer
+
+Phase 13: Chainlit Pipeline Diagram (optional, additive)
+  └─ Stage 15: Mermaid Pipeline Diagram in Chainlit UI
+
+Phase 14: Architecture Deep Dive (Module 4 — read + modify labs)
+  └─ Stage 16: Lab 4.1 — LangGraph State Machine (complete)
+  └─ Stage 17: Lab 4.2 — LangChain Tools (planned)
+  └─ Stage 18: Lab 4.3 — Reason Node (planned)
+  └─ Stage 19: Lab 4.4 — ChromaDB and Embeddings (planned)
+  └─ Stage 20: Lab 4.5 — Guard Pipeline (planned)
 ```
 
 ---

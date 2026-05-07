@@ -4,11 +4,15 @@
 
 Omaha-Lab (Ollama + Mac/Windows + Human + Agent) is a local-first research and development environment for exploring autonomous agent reasoning and cybersecurity guardrails. All inference stays on your hardware — no cloud LLM endpoints.
 
-The pipeline layers visible in the step cards (input guard, RAG, tool calls, HITL, output guard) are the same ones you attack and defend in the labs below. The full pipeline flow diagram is documented in the [README](https://github.com/packetcraft/Omaha-Lab/blob/master/README.md).
+The pipeline layers visible in the step cards (input guard, RAG, tool calls, HITL, output guard) are the same ones you attack and defend in the labs below. The colour-coded chain shown at session start and after each message is explained in [Lab 1.7](https://github.com/packetcraft/Omaha-Lab/blob/master/labs/module1/lab1_7_chainlit_pipeline_diagram.md). To capture and inspect the raw data flowing through each node, see [Lab 1.6](https://github.com/packetcraft/Omaha-Lab/blob/master/labs/module1/lab1_6_visualizing_the_pipeline.md) (Arize Phoenix). The full pipeline flow diagram is documented in the [README](https://github.com/packetcraft/Omaha-Lab/blob/master/README.md).
 
 ---
 
 ## Lab Guide
+
+> **Before you begin:** Read [FOUNDATIONS.md](https://github.com/packetcraft/Omaha-Lab/blob/master/FOUNDATIONS.md) first.
+> It establishes the CPU / OS / Harness mental model and the 5-stage agent evolution roadmap that every lab is built on.
+> Each lab targets a specific architectural layer — knowing the map makes the attacks and defences land.
 
 ### Module 1 — Foundations
 
@@ -17,6 +21,8 @@ The pipeline layers visible in the step cards (input guard, RAG, tool calls, HIT
 - [Lab 1.3 — Reading the ReAct Trace](https://github.com/packetcraft/Omaha-Lab/blob/master/labs/module1/lab1_3_react_trace.md)
 - [Lab 1.4 — Loading a Persona](https://github.com/packetcraft/Omaha-Lab/blob/master/labs/module1/lab1_4_persona.md)
 - [Lab 1.5 — Enabling RAG with a Markdown Context Document](https://github.com/packetcraft/Omaha-Lab/blob/master/labs/module1/lab1_5_rag.md)
+- [Lab 1.6 — Visualizing the Agent Pipeline with Phoenix](https://github.com/packetcraft/Omaha-Lab/blob/master/labs/module1/lab1_6_visualizing_the_pipeline.md)
+- [Lab 1.7 — Chainlit Pipeline Diagram](https://github.com/packetcraft/Omaha-Lab/blob/master/labs/module1/lab1_7_chainlit_pipeline_diagram.md)
 
 ### Module 2 — Offensive Security
 
@@ -45,6 +51,14 @@ Use **Guarded** or **Full Defense** Lab Mode for these exercises.
 - [Lab 3.7 — Iteration Limits and Rate Control](https://github.com/packetcraft/Omaha-Lab/blob/master/labs/module3/lab3_7_iteration_limits.md)
 - [Lab 3.8 — Supply Chain Hygiene: Verifying Ollama Models](https://github.com/packetcraft/Omaha-Lab/blob/master/labs/module3/lab3_8_supply_chain.md)
 - [Lab 3.9 — Grounding with RAG and Search: Reducing Misinformation](https://github.com/packetcraft/Omaha-Lab/blob/master/labs/module3/lab3_9_rag_grounding.md)
+
+### Module 4 — Architecture & Framework Deep Dive
+
+Read the actual code that powers the labs. Each exercise makes a small, safe
+modification to the codebase, runs the agent, and restores the original —
+making the framework mechanics concrete and observable.
+
+- [Lab 4.1 — Reading the LangGraph State Machine](https://github.com/packetcraft/Omaha-Lab/blob/master/labs/module4/lab4_1_langgraph_state_machine.md)
 
 ---
 

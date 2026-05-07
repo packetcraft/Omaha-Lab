@@ -37,9 +37,35 @@ Two diagram instances appear per session:
 
 ---
 
-## Step 1: Start Chainlit
+## Step 1: Start Phoenix (Optional — for side-by-side traces)
 
-In your terminal, start the Chainlit server:
+If you completed [Lab 1.6](lab1_6_visualizing_the_pipeline.md), you can run Phoenix alongside Chainlit. The Chainlit UI automatically detects a running Phoenix server and sends a trace for every message — no extra flags required.
+
+Open a **dedicated terminal**, activate the venv, and start Phoenix:
+
+**Windows (Git Bash)**
+```bash
+venv/Scripts/python -m phoenix.server.main serve
+```
+
+**macOS**
+```bash
+venv/bin/python -m phoenix.server.main serve
+```
+
+Expected output:
+```
+Starting Phoenix server...
+Phoenix UI available at: http://127.0.0.1:6006
+```
+
+Leave this terminal open. If Phoenix is not running, Chainlit operates normally — traces are simply not sent.
+
+---
+
+## Step 2: Start Chainlit
+
+In a second terminal, start the Chainlit server:
 
 ```bash
 chainlit run ui.py
@@ -55,7 +81,7 @@ A browser window opens automatically. If it does not, navigate to `http://localh
 
 ---
 
-## Step 2: Bare Profile — Topology Card
+## Step 3: Bare Profile — Topology Card
 
 When the browser opens you will see the Lab Mode selector. Select **Bare**.
 
@@ -73,7 +99,7 @@ All nodes are 🔵 because no message has been sent yet. The Bare profile has no
 
 ---
 
-## Step 3: Bare Profile — Per-Turn Path
+## Step 4: Bare Profile — Per-Turn Path
 
 Send a question that requires no tool call:
 
@@ -107,7 +133,7 @@ All three pipeline nodes are 🟢. The chain shows the message travelled through
 
 ---
 
-## Step 4: Guarded Profile — Guard Fired
+## Step 5: Guarded Profile — Guard Fired
 
 Switch to the **Guarded** profile (new chat) or enable Guard via Chat Settings (gear icon). The topology card shows:
 
@@ -152,7 +178,7 @@ Input → 🔴 Input Guard → 🔴 Blocked
 
 ---
 
-## Step 5: RAG Analyst Profile — RAG Node
+## Step 6: RAG Analyst Profile — RAG Node
 
 Switch to the **RAG Analyst** profile. The topology card shows:
 
@@ -181,7 +207,7 @@ What is a SQL injection attack?
 
 ---
 
-## Step 6: Full Defense Profile — All Nodes
+## Step 7: Full Defense Profile — All Nodes
 
 Switch to the **Full Defense** profile. The topology card shows the maximum-length chain:
 
@@ -209,7 +235,7 @@ Every node in the chain is 🟢 — the maximum-coverage path.
 
 ---
 
-## Step 7: Chat Settings — Live Reconfiguration
+## Step 8: Chat Settings — Live Reconfiguration
 
 Without switching profiles, open the gear icon and toggle **RAG** off while leaving Guard on. Chainlit sends:
 
@@ -227,7 +253,7 @@ Profile selection initialises all four controls; any control can be changed inde
 
 ---
 
-## Step 8: Topology Card vs. Pipeline Path — Side by Side
+## Step 9: Topology Card vs. Pipeline Path — Side by Side
 
 | Diagram | When it appears | What it shows | Badge states |
 |---|---|---|---|
