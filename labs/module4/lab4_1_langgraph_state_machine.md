@@ -134,13 +134,12 @@ value is computed inline:
 def should_continue(state: AgentState) -> str:
     last = state["messages"][-1]
     if hasattr(last, "tool_calls") and last.tool_calls:
-        route = "hitl" if hitl else "tools"              # ← add this line
-        print(f"\n[ROUTER] should_continue → {route}")   # ← add this line
-        return route
+        print(f"\n[ROUTER] → {'hitl' if hitl else 'tools'}")  # ← add this line
+        return "hitl" if hitl else "tools"
     if presidio_guard is not None:
-        print("\n[ROUTER] should_continue → output_guard")  # ← add this line
+        print("\n[ROUTER] → output_guard")                     # ← add this line
         return "output_guard"
-    print(f"\n[ROUTER] should_continue → END")              # ← add this line
+    print("\n[ROUTER] → END")                                  # ← add this line
     return END
 ```
 
