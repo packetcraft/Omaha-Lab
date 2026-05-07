@@ -71,7 +71,7 @@ class AgentState(TypedDict):
 
 ---
 
-## Step 2: Find the Entry Point — `graph.py` lines 213–222
+## Step 2: Find the Entry Point — `graph.py` lines 230–239
 
 Scroll to the bottom of `graph.py`. The entry point is not fixed — it shifts
 based on which components are active:
@@ -102,7 +102,7 @@ the `[REASON]` / `[Guard]` lines in the CLI output.
 
 ---
 
-## Step 3: Find the Routing Function — `graph.py` lines 92–98
+## Step 3: Find the Routing Function — `graph.py` lines 99–108
 
 The `should_continue` function is a **conditional edge** — it runs after every
 `agent_node` call and returns a string that tells LangGraph which node to visit
@@ -234,6 +234,10 @@ Remove the one marked line and put three lines in its place:
 
 Run the agent and send a tool-calling question:
 
+```bash
+python agent.py
+```
+
 ```
 You: What is the weather in Denver?
 ```
@@ -255,12 +259,12 @@ copy graph.py.bak graph.py && del graph.py.bak     # Windows cmd
 
 ## Discussion Questions
 
-1. `MemorySaver` (line 224) is the checkpointer passed to `graph.compile()`.
+1. `MemorySaver` (line 241) is the checkpointer passed to `graph.compile()`.
    It keeps conversation history in memory across turns using `thread_id`. What
    would happen to conversation history if you restarted `agent.py`? What would
    you need to change to make history persist across restarts?
 
-2. `reason_node` is only defined when `tools` is non-empty (line 56:
+2. `reason_node` is only defined when `tools` is non-empty (line 62:
    `if tools:`). If you ran the agent with an empty tool list, which node would
    be the entry point and what would the graph look like?
 
@@ -268,7 +272,7 @@ copy graph.py.bak graph.py && del graph.py.bak     # Windows cmd
    a tool call triggered another tool call (a chain of tools), how many times
    would `should_continue` fire? Trace it on the graph you drew in Step 5.
 
-4. The `after_guard` routing function (lines 137–144) checks three conditions
+4. The `after_guard` routing function (lines 148–155) checks three conditions
    in order: `guard_blocked → END`, `retriever → rag`, `tools → reason`. What
    would happen if you swapped the `retriever` and `tools` checks? Would the
    graph still work correctly?
