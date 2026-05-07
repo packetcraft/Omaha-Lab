@@ -9,6 +9,15 @@ No prior LangGraph knowledge required.
 > run the agent, observe the effect, then restore the original. Each change is
 > one or two lines — no architecture knowledge needed to follow along.
 
+> **Before you start — back up `graph.py`.**
+> Steps 4 and 6 both modify `graph.py`. Take a backup now so you can restore
+> with a single command instead of manually reverting edits:
+> ```bash
+> cp graph.py graph.py.bak        # macOS / Git Bash
+> copy graph.py graph.py.bak      # Windows cmd
+> ```
+> `git status` will show `graph.py.bak` as untracked during the lab — ignore it.
+
 ---
 
 ## Objective
@@ -164,8 +173,11 @@ Notice that `[ROUTER]` fires *twice* for the weather question — once to route
 to `tools`, and once after `tools` returns and `agent_node` runs the synthesis
 turn.
 
-**Restore:** Remove the `print` line and revert `should_continue` to its
-original form before moving on.
+**Restore:** Copy the backup back before moving on to Step 5:
+```bash
+cp graph.py.bak graph.py        # macOS / Git Bash
+copy graph.py.bak graph.py      # Windows cmd
+```
 
 ---
 
@@ -214,8 +226,11 @@ You: What is the weather in Denver?
 
 You should see `[LAB4]` output the reasoning text between `[REASON]` and `[ACT]`.
 
-**Restore:** Remove `log_reasoning_node` and revert the edges to the original
-`graph.add_edge("reason", "agent")` before the next lab.
+**Restore:** Copy the backup back and delete it:
+```bash
+cp graph.py.bak graph.py && rm graph.py.bak        # macOS / Git Bash
+copy graph.py.bak graph.py && del graph.py.bak     # Windows cmd
+```
 
 ---
 

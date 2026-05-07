@@ -36,6 +36,9 @@ logs/*.log
 # Audit logs (lab-generated, not source)
 audit/*.jsonl
 
+# Lab backup files (created during Module 4 modify+observe exercises)
+*.bak
+
 # OS
 .DS_Store
 Thumbs.db
