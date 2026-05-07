@@ -50,6 +50,10 @@ observe = [
 all = [
     "omaha-lab[nlp,ui,observe]",
 ]
+# pip install ".[dev]"      — test runner (no prod deps)
+dev = [
+    "pytest>=8.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/omaha-lab/omaha-lab"
