@@ -209,13 +209,27 @@ def log_reasoning_node(state: AgentState) -> dict:
     return {}   # return empty dict — no state changes
 ```
 
-Wire it into the graph. Find the existing edge `graph.add_edge("reason", "agent")`
-and replace it with:
+Wire it into the graph. In the **Graph assembly** block (around line 205),
+find this section:
 
 ```python
-graph.add_node("log_reasoning", log_reasoning_node)
-graph.add_edge("reason", "log_reasoning")
-graph.add_edge("log_reasoning", "agent")
+    if tools:
+        graph.add_node("reason", reason_node)
+        graph.add_edge("reason", "agent")        # ← remove this line
+        graph.add_node("tools", ToolNode(tools))
+        graph.add_edge("tools", "agent")
+```
+
+Remove the one marked line and put three lines in its place:
+
+```python
+    if tools:
+        graph.add_node("reason", reason_node)
+        graph.add_node("log_reasoning", log_reasoning_node)  # ← add
+        graph.add_edge("reason", "log_reasoning")            # ← add
+        graph.add_edge("log_reasoning", "agent")             # ← add
+        graph.add_node("tools", ToolNode(tools))
+        graph.add_edge("tools", "agent")
 ```
 
 Run the agent and send a tool-calling question:
