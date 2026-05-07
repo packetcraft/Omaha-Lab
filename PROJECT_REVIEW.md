@@ -116,9 +116,11 @@ Run with: `venv/Scripts/python -m pytest tests/ -v` (Windows) or `venv/bin/pytho
 
 ---
 
-### B. Split requirements.txt into core and optional 🔲 OPEN (partial)
+### B. Split requirements.txt into core and optional ❌ WON'T DO
 
-The `pyproject.toml` optional dependency groups (fix #4) solve the `pip install .` case. The monolithic `requirements.txt` still installs chainlit + phoenix by default. Consider creating `requirements-core.txt` for students who only need the CLI agent.
+The `pyproject.toml` optional dependency groups (fix #4) already solve the "core only" case for anyone installing as a package (`pip install ".[ui]"`, `pip install ".[observe]"`). A second `requirements-core.txt` would create a third install path students must choose between — more confusion, not less.
+
+The real install friction is the Ollama models (~7 GB), not the Python packages. Students doing Labs 1.6 and 1.7 need chainlit + phoenix eventually anyway, so a core-only start doesn't avoid the download. No action required.
 
 ---
 
@@ -249,7 +251,38 @@ Makefile targets: `make bench` (full stack) and `make bench-regex` (regex-only).
 
 ### Docker Compose 🔲 OPEN
 
-A `docker-compose.yml` for classroom/demo deployments. Non-blocking for local development use.
+A `docker-compose.yml` for classroom/demo deployments where students cannot install Ollama locally.
+
+#### Services
+
+| Service | Image | Notes |
+|---|---|---|
+| `ollama` | `ollama/ollama` | Models stored in a named volume; ~7 GB on first boot |
+| `app` | built from `Dockerfile` | Chainlit UI on port 8000; env vars point to other services |
+| `phoenix` | `arizephoenix/phoenix` | Trace server on port 6006; no config needed |
+| `chromadb` | `chromadb/chroma` | HTTP server mode on port 8001 |
+
+#### New Files
+
+| File | Purpose |
+|---|---|
+| `Dockerfile` | Builds the app image: installs deps, downloads spaCy model, copies source. No Ollama models baked in |
+| `docker-compose.yml` | Wires the four services; sets `OLLAMA_BASE_URL=http://ollama:11434`, `CHROMA_HOST=chromadb:8001`; named volumes for models and ChromaDB data |
+| `docker/ollama-init.sh` | Entrypoint script: runs `ollama pull` for each required model on first boot, then starts `ollama serve`. Health-check ensures app waits for pulls to finish |
+
+#### Code Change Required
+
+**`rag/retriever.py`** — ChromaDB currently uses `PersistentClient` (embedded file). Docker mode needs `HttpClient(host, port)`. Add a branch switchable by `CHROMA_HOST` env var. This is the only non-trivial code change.
+
+#### Complications
+
+1. **Model bootstrap latency** — first `docker compose up` pulls ~7 GB into the named volume. A health-check chain is required so the app waits for Ollama to finish before starting.
+2. **GPU passthrough** — NVIDIA Container Toolkit required for GPU acceleration in Docker. CPU-only works but is slow for `llama-guard3`. Include a commented-out `deploy.resources` block for GPU users.
+3. **Port conflict** — ChromaDB default (8000) collides with Chainlit default (8000). Remap ChromaDB to 8001.
+
+#### Gate Question
+
+Only worth building if there is a real classroom use case where students cannot install Ollama locally. The Makefile already handles local setup. Do not build speculatively.
 
 ---
 
@@ -260,11 +293,11 @@ A `docker-compose.yml` for classroom/demo deployments. Non-blocking for local de
 | ~~P1~~ | ~~Add note to `lab3_1` about Llama Guard fail-open (Issue #5)~~ | ✅ Done |
 | ~~P2~~ | ~~GitHub Actions CI (pytest on push/PR)~~ | ✅ Done |
 | ~~P2~~ | ~~Makefile / setup script~~ | ✅ Done |
-| P3 | Split `requirements.txt` into core + optional files | 30 min |
+| ~~P3~~ | ~~Split `requirements.txt` into core + optional files~~ | ❌ Won't do — pyproject.toml optional groups already cover this |
 | ~~P3~~ | ~~Evaluation harness (`bench.py`)~~ | ✅ Done |
 | ~~P3~~ | ~~Attack prompt library (`prompts/`)~~ | ✅ Done |
-| P4 | Module 5 (multi-agent security) | 2–3 days |
-| P4 | Docker Compose | 2–4 hours |
+| P4 | Module 5 (multi-agent security) | ~10 hours — design captured in PROJECT_REVIEW |
+| P4 | Docker Compose | ~4–6 hours — design captured in PROJECT_REVIEW; build only if classroom use case confirmed |
 
 ---
 
