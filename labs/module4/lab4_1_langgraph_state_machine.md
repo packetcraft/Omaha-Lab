@@ -238,7 +238,12 @@ Run the agent and send a tool-calling question:
 You: What is the weather in Denver?
 ```
 
-You should see `[LAB4]` output the reasoning text between `[REASON]` and `[ACT]`.
+You should see `[LAB4]` appear between `[REASON]` and `[ACT]`. The text will
+match the first 120 characters of the `[REASON]` output — same content,
+truncated by the `[:120]` slice in the code. This confirms that
+`log_reasoning_node` is reading `state["reasoning"]` written by `reason_node`
+one step earlier, proving the state dictionary is the live data carrier between
+nodes.
 
 **Restore:** Copy the backup back and delete it:
 ```bash
