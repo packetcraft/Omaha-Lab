@@ -126,20 +126,22 @@ terminate? Why?
 
 ## Step 4: Modify + Observe — Watch the Router Fire
 
-Add one print statement inside `should_continue` so you can see the routing
-decision in the terminal output:
+Add a `print` before each `return` in `should_continue`. The structure stays
+identical to Step 3 — only the first branch needs a variable because the route
+value is computed inline:
 
 ```python
 def should_continue(state: AgentState) -> str:
     last = state["messages"][-1]
     if hasattr(last, "tool_calls") and last.tool_calls:
-        route = "hitl" if hitl else "tools"
-    elif presidio_guard is not None:
-        route = "output_guard"
-    else:
-        route = END
-    print(f"\n[ROUTER] should_continue → {route}")   # ← add this line
-    return route
+        route = "hitl" if hitl else "tools"          # ← split so we can print it
+        print(f"\n[ROUTER] should_continue → {route}")
+        return route
+    if presidio_guard is not None:
+        print("\n[ROUTER] should_continue → output_guard")
+        return "output_guard"
+    print(f"\n[ROUTER] should_continue → END")
+    return END
 ```
 
 Run the agent with two different messages:
