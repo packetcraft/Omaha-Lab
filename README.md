@@ -87,7 +87,20 @@ make run-full      # full defense stack — all layers on
 Or call the CLI directly for custom combinations:
 
 ```bash
-venv/bin/python agent.py --persona hr_assistant --rag on --guard on --hitl on
+# 1. Baseline — observe raw agent traffic, no defenses
+venv/bin/python agent.py --persona customer_service --observe on
+
+# 2. RAG only — watch retrieval traces in Phoenix
+venv/bin/python agent.py --persona security_analyst --rag on --observe on
+
+# 3. Guard only — see Llama Guard blocks + Presidio redactions in traces
+venv/bin/python agent.py --persona hr_assistant --guard on --observe on
+
+# 4. RAG + Guard — retrieval with safety filter; compare latency vs. option 2
+venv/bin/python agent.py --persona code_assistant --rag on --guard on --observe on
+
+# 5. Full stack — all layers on; use as the hardened baseline for evaluation
+venv/bin/python agent.py --persona hr_assistant --rag on --guard on --hitl on --observe on
 ```
 
 **CLI flags:**
