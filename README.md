@@ -88,18 +88,23 @@ Or call the CLI directly for custom combinations:
 
 ```bash
 # 1. Baseline — observe raw agent traffic, no defenses
+#    Labs: 1.3 Reading the ReAct Trace · 1.6 Visualizing the Agent Pipeline with Phoenix
 venv/bin/python agent.py --persona customer_service --observe on
 
 # 2. RAG only — watch retrieval traces in Phoenix
+#    Labs: 1.5 Enabling RAG with a Markdown Context Document · 4.3 RAG Pipeline Internals
 venv/bin/python agent.py --persona security_analyst --rag on --observe on
 
 # 3. Guard only — see Llama Guard blocks + Presidio redactions in traces
+#    Labs: 3.1 Enabling Llama Guard 3 on Inputs · 3.3 PII Redaction with Microsoft Presidio
 venv/bin/python agent.py --persona hr_assistant --guard on --observe on
 
 # 4. RAG + Guard — retrieval with safety filter; compare latency vs. option 2
+#    Labs: 3.2 Applying Llama Guard 3 to Retrieved RAG Chunks · 3.9 Grounding with RAG and Search
 venv/bin/python agent.py --persona code_assistant --rag on --guard on --observe on
 
 # 5. Full stack — all layers on; use as the hardened baseline for evaluation
+#    Labs: 3.4 HITL Authorization Breakpoint · 3.10 Measuring Guard Coverage with the Evaluation Harness
 venv/bin/python agent.py --persona hr_assistant --rag on --guard on --hitl on --observe on
 ```
 
