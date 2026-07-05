@@ -67,16 +67,27 @@ cp .env.example .env           # then add your API keys
 
 > **Higher-end machines:** set `OLLAMA_MODEL=qwen2.5:7b` in `.env` for stronger reasoning (~8 GB VRAM required).
 
-### Running Inside Docker (Ollama stays on the host)
+### Option C — Docker (no local Python 3.11 needed)
 
-If Claude Code and this project run inside a Docker container while Ollama runs natively on the host (e.g. Windows), only one setting changes — everything already reads Ollama's address from `OLLAMA_BASE_URL`, so no code changes are needed:
+Build the whole lab environment — venv, deps, spacy model — *inside* a container, while Ollama keeps running natively on the host for GPU access:
 
 ```bash
-# .env
-OLLAMA_BASE_URL=http://host.docker.internal:11434
+git clone https://github.com/omaha-lab/omaha-lab.git
+cd omaha-lab
+docker-compose up -d --build
+docker exec -it omaha-lab-coding-agent bash
+
+# now inside the container:
+cd /workspace
+make install   # venv + all deps + spacy model + .env — runs against Debian/Linux, not Windows/macOS
+make models    # pulls ~7 GB of Ollama models onto the HOST via host.docker.internal
 ```
 
-A ready-to-use `Dockerfile` and `docker-compose.yml` are included in the repo root (adapted from the `docker-coding-agents` project) — they bind-mount this project directory into `/workspace` and publish both UI ports:
+See [Running Inside Docker](#running-inside-docker-ollama-stays-on-the-host) below for the full walkthrough, port mappings, and troubleshooting.
+
+### Running Inside Docker (Ollama stays on the host)
+
+A ready-to-use `Dockerfile` and `docker-compose.yml` are included in the repo root (adapted from the `docker-coding-agents` project). The container gets Python 3.11, Node.js, `git`, `gh`, and Claude Code preinstalled; the project directory is bind-mounted in rather than baked into the image, so `venv/`, `.chroma/`, and `.env` persist across rebuilds; and Ollama itself keeps running natively on the host, so it keeps native GPU access with no NVIDIA Container Toolkit passthrough required.
 
 ```yaml
 services:
@@ -99,20 +110,48 @@ services:
     tty: true
 ```
 
-Build and attach:
+**1. Build the image and start the container:**
 
 ```bash
 docker-compose up -d --build
+```
+
+**2. Attach a shell:**
+
+```bash
 docker exec -it omaha-lab-coding-agent bash
 ```
 
-Then, inside the container, run setup and the lab commands as normal (`make install`, `make ui`, `make phoenix`, etc.) — `make ui` and `make phoenix` are separate long-running targets you'll typically run in different terminals/sessions, so both ports need to be published up front rather than added later.
+**3. Run the normal setup and lab commands from inside the container** — the `Makefile`'s OS check falls through to its Linux branch (`python3.11 -m venv venv`, `venv/bin/python`) automatically, since `make` (via `build-essential`) and `python3.11` are already on the image:
 
-- `host.docker.internal` is provided automatically by Docker Desktop. On plain Docker Engine under WSL2, add `--add-host=host.docker.internal:host-gateway` to `docker run` (or the equivalent in a devcontainer.json `runArgs`) — already set via `extra_hosts` above.
+```bash
+cd /workspace
+make install
+make models
+make run           # or run-secure / run-rag / run-full
+```
+
+**4. Chainlit and Phoenix run as separate long-lived processes**, typically in two different `docker exec` sessions attached to the same container, which is why both ports are published up front in the compose file rather than added later:
+
+```bash
+# session A
+docker exec -it omaha-lab-coding-agent bash -c "cd /workspace && make ui"        # http://localhost:8000
+
+# session B
+docker exec -it omaha-lab-coding-agent bash -c "cd /workspace && make phoenix"   # http://127.0.0.1:6006
+```
+
+**5. Rebuild after Dockerfile changes:**
+
+```bash
+docker-compose down && docker-compose up -d --build
+```
+
+Notes:
+
+- You do **not** need to edit `.env`'s `OLLAMA_BASE_URL` for Docker — `load_dotenv()` (used in `agent.py`, `ui.py`, `bench.py`) never overrides an already-set environment variable, and `docker-compose.yml` already injects `OLLAMA_BASE_URL=http://host.docker.internal:11434` as a container env var. You still need `.env` for `WEATHER_API_KEY` / `SEARCH_API_KEY` if you use those — run `cp .env.example .env` inside the container (or on the host, since it's bind-mounted) and fill them in.
+- `host.docker.internal` is provided automatically by Docker Desktop; the compose file's `extra_hosts: host.docker.internal:host-gateway` covers plain Docker Engine under WSL2 too.
 - If the container still can't reach Ollama, set `OLLAMA_HOST=0.0.0.0` as a host environment variable for the Ollama service and restart it, so it listens on all interfaces instead of only `127.0.0.1`.
-- Ports `8000` (Chainlit UI) and `6006` (Phoenix) are published from the container so you can open them from a browser on the host.
-- The project directory is bind-mounted into the container (rather than baked into the image) so `venv/`, `.chroma/`, and `.env` persist across container rebuilds.
-- Keeping Ollama on the host means it keeps native GPU access without needing NVIDIA Container Toolkit passthrough in Docker.
 
 ---
 
