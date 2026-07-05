@@ -37,6 +37,11 @@ PyYAML==6.0.3
 
 # Web UI (optional — CLI works without this)
 chainlit==2.11.1
+# Pin transitive dep to stop pip from backtracking through ~40 optional
+# traceloop-sdk instrumentation sub-packages (haystack, lancedb, milvus, etc.)
+# pulled in via chainlit -> literalai. Without this pin, resolution can take
+# several minutes; with it, seconds.
+traceloop-sdk==0.61.0
 
 # Observability (optional — required for --observe on)
 # NOTE: pip may warn about opentelemetry-semantic-conventions version conflicts.
