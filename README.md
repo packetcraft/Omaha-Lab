@@ -67,6 +67,21 @@ cp .env.example .env           # then add your API keys
 
 > **Higher-end machines:** set `OLLAMA_MODEL=qwen2.5:7b` in `.env` for stronger reasoning (~8 GB VRAM required).
 
+### Running Inside Docker (Ollama stays on the host)
+
+If Claude Code and this project run inside a Docker container while Ollama runs natively on the host (e.g. Windows), only one setting changes — everything already reads Ollama's address from `OLLAMA_BASE_URL`, so no code changes are needed:
+
+```bash
+# .env
+OLLAMA_BASE_URL=http://host.docker.internal:11434
+```
+
+- `host.docker.internal` is provided automatically by Docker Desktop. On plain Docker Engine under WSL2, add `--add-host=host.docker.internal:host-gateway` to `docker run` (or the equivalent in a devcontainer.json `runArgs`).
+- If the container still can't reach Ollama, set `OLLAMA_HOST=0.0.0.0` as a host environment variable for the Ollama service and restart it, so it listens on all interfaces instead of only `127.0.0.1`.
+- Publish ports `8000` (Chainlit UI) and `6006` (Phoenix) from the container so you can open them from a browser on the host.
+- Bind-mount the project directory into the container (rather than baking it into the image) so `venv/`, `.chroma/`, and `.env` persist across container rebuilds.
+- Keeping Ollama on the host means it keeps native GPU access without needing NVIDIA Container Toolkit passthrough in Docker.
+
 ---
 
 ## Quick Start
