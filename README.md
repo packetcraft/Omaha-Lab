@@ -76,10 +76,42 @@ If Claude Code and this project run inside a Docker container while Ollama runs 
 OLLAMA_BASE_URL=http://host.docker.internal:11434
 ```
 
-- `host.docker.internal` is provided automatically by Docker Desktop. On plain Docker Engine under WSL2, add `--add-host=host.docker.internal:host-gateway` to `docker run` (or the equivalent in a devcontainer.json `runArgs`).
+A ready-to-use `Dockerfile` and `docker-compose.yml` are included in the repo root (adapted from the `docker-coding-agents` project) — they bind-mount this project directory into `/workspace` and publish both UI ports:
+
+```yaml
+services:
+  coding-agent:
+    build: .
+    container_name: omaha-lab-coding-agent
+    volumes:
+      - .:/workspace
+      - ~/.gitconfig:/root/.gitconfig:ro
+      - ~/.config/gh:/root/.config/gh
+    environment:
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - OPENAI_API_BASE=http://host.docker.internal:11434/v1
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8000:8000"  # Chainlit UI — started via `make ui`
+      - "6006:6006"  # Phoenix — started via `make phoenix`
+    stdin_open: true
+    tty: true
+```
+
+Build and attach:
+
+```bash
+docker-compose up -d --build
+docker exec -it omaha-lab-coding-agent bash
+```
+
+Then, inside the container, run setup and the lab commands as normal (`make install`, `make ui`, `make phoenix`, etc.) — `make ui` and `make phoenix` are separate long-running targets you'll typically run in different terminals/sessions, so both ports need to be published up front rather than added later.
+
+- `host.docker.internal` is provided automatically by Docker Desktop. On plain Docker Engine under WSL2, add `--add-host=host.docker.internal:host-gateway` to `docker run` (or the equivalent in a devcontainer.json `runArgs`) — already set via `extra_hosts` above.
 - If the container still can't reach Ollama, set `OLLAMA_HOST=0.0.0.0` as a host environment variable for the Ollama service and restart it, so it listens on all interfaces instead of only `127.0.0.1`.
-- Publish ports `8000` (Chainlit UI) and `6006` (Phoenix) from the container so you can open them from a browser on the host.
-- Bind-mount the project directory into the container (rather than baking it into the image) so `venv/`, `.chroma/`, and `.env` persist across container rebuilds.
+- Ports `8000` (Chainlit UI) and `6006` (Phoenix) are published from the container so you can open them from a browser on the host.
+- The project directory is bind-mounted into the container (rather than baked into the image) so `venv/`, `.chroma/`, and `.env` persist across container rebuilds.
 - Keeping Ollama on the host means it keeps native GPU access without needing NVIDIA Container Toolkit passthrough in Docker.
 
 ---
