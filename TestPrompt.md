@@ -2,6 +2,17 @@
 
 Every `python agent.py` invocation across `/labs`, paired with the sample chat prompts used with it.
 
+
+
+source venv/bin/activate
+pip install -r requiremenst.txt
+python agent.py --persona customer_service
+
+## Flag to enable tracing
+--observe on
+
+
+----- ----- ----- ----- ----- 
 ---
 
 ## Module 1
