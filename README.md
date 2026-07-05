@@ -48,26 +48,20 @@ cd omaha-lab
 python3.11 -m venv venv          # macOS
 py -3.11    -m venv venv          # Windows Git Bash
 
-# 3. Install dependencies
+# 3. Install dependencies (core + Web UI + observability — all pinned in requirements.txt)
 venv/bin/pip install -r requirements.txt                              # macOS
 venv/Scripts/pip install -r requirements.txt                          # Windows
 
-# 4. Install optional packages (Web UI + observability)
-venv/bin/pip install chainlit "arize-phoenix>=15.0" "arize-phoenix-otel>=0.16" \
-    openinference-instrumentation openinference-instrumentation-langchain \
-    openinference-semantic-conventions opentelemetry-api opentelemetry-sdk \
-    opentelemetry-exporter-otlp-proto-http
-
-# 5. Download spacy model
+# 4. Download spacy model
 venv/bin/python -m spacy download en_core_web_lg    # macOS
 venv/Scripts/python -m spacy download en_core_web_lg # Windows
 
-# 6. Pull Ollama models (~7 GB total)
+# 5. Pull Ollama models (~7 GB total)
 ollama pull qwen2.5:1.5b       # default model, CPU-friendly
 ollama pull nomic-embed-text   # RAG embeddings
 ollama pull llama-guard3       # input safety classifier
 
-# 7. Configure environment
+# 6. Configure environment
 cp .env.example .env           # then add your API keys
 ```
 

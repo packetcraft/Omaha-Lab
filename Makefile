@@ -17,29 +17,15 @@ endif
 # Setup                                                                        #
 # --------------------------------------------------------------------------- #
 
-.PHONY: install deps deps-ui deps-observe spacy-model env models
+.PHONY: install deps spacy-model env models
 
-install: venv deps deps-ui deps-observe spacy-model env  ## Full first-run setup: all deps (core + UI + observe) + spacy model + .env
+install: venv deps spacy-model env  ## Full first-run setup: venv + all deps (core, UI, observability) + spacy model + .env
 
 venv:
 	$(VENV_CMD)
 
 deps:
 	$(PIP) install -r requirements.txt
-
-deps-ui:  ## Install Chainlit web UI packages
-	$(PIP) install "chainlit>=2.0"
-
-deps-observe:  ## Install Arize Phoenix observability packages
-	$(PIP) install \
-		"arize-phoenix>=15.0" \
-		"arize-phoenix-otel>=0.16" \
-		"openinference-instrumentation>=0.1" \
-		"openinference-instrumentation-langchain>=0.1" \
-		"openinference-semantic-conventions>=0.1" \
-		"opentelemetry-api>=1.39" \
-		"opentelemetry-sdk>=1.39" \
-		"opentelemetry-exporter-otlp-proto-http>=1.39"
 
 spacy-model:
 	$(PYTHON) -m spacy download en_core_web_lg
@@ -118,4 +104,4 @@ help:  ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) \
 		| awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
 	@echo ""
-	@echo "Quick start:  make install models run    (installs core + UI + observability)"
+	@echo "Quick start:  make install models run"
