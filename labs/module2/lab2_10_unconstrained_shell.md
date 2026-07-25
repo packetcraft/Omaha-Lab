@@ -5,9 +5,7 @@
 **Estimated time:** 25 minutes
 **Prerequisite:** [Lab 2.6 — Excessive Agency: Unauthorized File Write](lab2_6_excessive_agency.md)
 
-> **Status: design draft.** This lab references `tools/bash_tool.py`, the `run_shell` tool, and the `devops_assistant` persona, none of which exist in the codebase yet. The lab doc is written first so the attack scenarios, guardrail behavior, and discussion questions can be reviewed before the tool is implemented. Do not attempt to run these steps until that implementation lands.
-
-> **⚠️ Safety — read before implementing or running this lab.** `run_shell` executes with the real permissions of whatever process runs the agent. Every other tool in this repo is sandboxed by construction — `file_ops.py` confines reads/writes to `./workspace/`, `http_request.py` restricts to a domain allow-list. A shell tool has no equivalent narrow input shape to constrain. **This lab must only be run inside the Multipass VM or Docker isolation** (see the main [README](../../README.md#option-c--multipass-vm-apple-silicon-app-runtime-in-a-vm-ollama-on-the-mac)) — never on a bare host machine.
+> **⚠️ Safety — read before running this lab.** `run_shell` executes with the real permissions of whatever process runs the agent. Every other tool in this repo is sandboxed by construction — `file_ops.py` confines reads/writes to `./workspace/`, `http_request.py` restricts to a domain allow-list. A shell tool has no equivalent narrow input shape to constrain. **This lab must only be run inside the Multipass VM isolation** (see the main [README](../../README.md#option-c--multipass-vm-apple-silicon-app-runtime-in-a-vm-ollama-on-the-mac)) — never on a bare host machine.
 
 ---
 

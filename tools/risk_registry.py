@@ -8,4 +8,5 @@ RISK_LEVEL: dict[str, str] = {
     "http_get":    "low",
     "read_file":   "low",
     "write_file":  "high",
+    "run_shell":   "high",
 }

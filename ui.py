@@ -113,11 +113,12 @@ _PROFILES: dict[str, tuple] = {
 
 # Persona options available in Chat Settings
 _PERSONA_OPTIONS: dict[str, str | None] = {
-    "none":             None,
-    "customer_service": "customer_service",
-    "hr_assistant":     "hr_assistant",
-    "security_analyst": "security_analyst",
-    "code_assistant":   "code_assistant",
+    "none":              None,
+    "customer_service":  "customer_service",
+    "hr_assistant":      "hr_assistant",
+    "security_analyst":  "security_analyst",
+    "code_assistant":    "code_assistant",
+    "devops_assistant":  "devops_assistant",
 }
 
 _PROFILE_DESC: dict[str, str] = {

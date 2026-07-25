@@ -3,7 +3,10 @@ import pytest
 from personas.loader import PersonaLoader
 from personas.schema import Persona
 
-KNOWN_SLUGS = {"customer_service", "hr_assistant", "security_analyst", "code_assistant"}
+KNOWN_SLUGS = {
+    "customer_service", "hr_assistant", "security_analyst", "code_assistant",
+    "devops_assistant",
+}
 VALID_RISK_LEVELS = {"low", "medium", "high"}
 
 
