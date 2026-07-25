@@ -67,91 +67,71 @@ cp .env.example .env           # then add your API keys
 
 > **Higher-end machines:** set `OLLAMA_MODEL=qwen2.5:7b` in `.env` for stronger reasoning (~8 GB VRAM required).
 
-### Option C — Docker (no local Python 3.11 needed)
+### Option C — Multipass VM (Apple Silicon: app runtime in a VM, Ollama on the Mac)
 
-Build the whole lab environment — venv, deps, spacy model — *inside* a container, while Ollama keeps running natively on the host for GPU access:
+Runs Chainlit, LangGraph, Phoenix, and the rest of the app runtime inside an Ubuntu (arm64) [Multipass](https://multipass.run) VM, while Ollama keeps running natively on the Mac host for Metal (GPU) acceleration. The VM reaches Ollama over a **bridged network** connection — a real LAN IP, not a Docker-style magic hostname.
+
+**Requires:** macOS on Apple Silicon (M1/M2/M3+) and Multipass (`brew install --cask multipass`).
+
+**1. Let Ollama listen on the LAN, not just localhost** (run on the Mac):
 
 ```bash
+launchctl setenv OLLAMA_HOST "0.0.0.0"
+# then quit and relaunch the Ollama app (or re-run `ollama serve` if started from a terminal)
+```
+
+The first time the VM connects, accept the macOS Firewall prompt (or allow it manually under System Settings → Network → Firewall → Options).
+
+**2. Find the Mac's LAN IP** — the VM will use this to reach Ollama:
+
+```bash
+ipconfig getifaddr en0        # Wi-Fi, usually
+# ipconfig getifaddr en1      # try this if en0 is empty (wired/other adapters)
+```
+
+**3. Bridge Multipass to that same interface and launch the VM:**
+
+```bash
+multipass set local.bridged-network=en0        # match the interface from step 2
+multipass launch 22.04 --name omaha-lab --cpus 4 --memory 8G --disk 25G --network bridged
+```
+
+Multipass automatically pulls the arm64 Ubuntu image on Apple Silicon hosts — no separate arch flag needed.
+
+**4. Shell in, install system deps, and clone the repo:**
+
+```bash
+multipass shell omaha-lab
+
+sudo apt update && sudo apt install -y python3.11 python3.11-venv git build-essential
 git clone https://github.com/omaha-lab/omaha-lab.git
 cd omaha-lab
-docker-compose up -d --build
-docker exec -it omaha-lab-coding-agent bash
-
-# now inside the container:
-cd /workspace
-make install   # venv + all deps + spacy model + .env — runs against Debian/Linux, not Windows/macOS
-make models    # pulls ~7 GB of Ollama models onto the HOST via host.docker.internal
 ```
 
-See [Running Inside Docker](#running-inside-docker-ollama-stays-on-the-host) below for the full walkthrough, port mappings, and troubleshooting.
-
-### Running Inside Docker (Ollama stays on the host)
-
-A ready-to-use `Dockerfile` and `docker-compose.yml` are included in the repo root (adapted from the `docker-coding-agents` project). The container gets Python 3.11, Node.js, `git`, `gh`, and Claude Code preinstalled; the project directory is bind-mounted in rather than baked into the image, so `venv/`, `.chroma/`, and `.env` persist across rebuilds; and Ollama itself keeps running natively on the host, so it keeps native GPU access with no NVIDIA Container Toolkit passthrough required.
-
-```yaml
-services:
-  coding-agent:
-    build: .
-    container_name: omaha-lab-coding-agent
-    volumes:
-      - .:/workspace
-      - ~/.gitconfig:/root/.gitconfig:ro
-      - ~/.config/gh:/root/.config/gh
-    environment:
-      - OLLAMA_BASE_URL=http://host.docker.internal:11434
-      - OPENAI_API_BASE=http://host.docker.internal:11434/v1
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    ports:
-      - "8000:8000"  # Chainlit UI — started via `make ui`
-      - "6006:6006"  # Phoenix — started via `make phoenix`
-    stdin_open: true
-    tty: true
-```
-
-**1. Build the image and start the container:**
+**5. Point the app at the host's Ollama:**
 
 ```bash
-docker-compose up -d --build
+cp .env.example .env
+# edit .env: OLLAMA_BASE_URL=http://<mac-lan-ip-from-step-2>:11434
 ```
 
-**2. Attach a shell:**
+**6. Install and run — same `make` targets as every other option:**
 
 ```bash
-docker exec -it omaha-lab-coding-agent bash
+make install   # venv + all deps + spacy model
+make models    # pulls ~7 GB of Ollama models onto the HOST, over the bridged connection
+make run       # or run-secure / run-rag / run-full
+make ui        # Chainlit — reachable at http://<vm-ip>:8000
+make phoenix   # Phoenix — reachable at http://<vm-ip>:6006
 ```
 
-**3. Run the normal setup and lab commands from inside the container** — the `Makefile`'s OS check falls through to its Linux branch (`python3.11 -m venv venv`, `venv/bin/python`) automatically, since `make` (via `build-essential`) and `python3.11` are already on the image:
-
-```bash
-cd /workspace
-make install
-make models
-make run           # or run-secure / run-rag / run-full
-```
-
-**4. Chainlit and Phoenix run as separate long-lived processes**, typically in two different `docker exec` sessions attached to the same container, which is why both ports are published up front in the compose file rather than added later:
-
-```bash
-# session A
-docker exec -it omaha-lab-coding-agent bash -c "cd /workspace && make ui"        # http://localhost:8000
-
-# session B
-docker exec -it omaha-lab-coding-agent bash -c "cd /workspace && make phoenix"   # http://127.0.0.1:6006
-```
-
-**5. Rebuild after Dockerfile changes:**
-
-```bash
-docker-compose down && docker-compose up -d --build
-```
+Get the VM's IP with `multipass info omaha-lab`. Unlike Docker's published ports, a bridged Multipass VM is just another machine on your LAN — no port mapping needed, just browse straight to `<vm-ip>:8000` / `<vm-ip>:6006` from the Mac.
 
 Notes:
 
-- You do **not** need to edit `.env`'s `OLLAMA_BASE_URL` for Docker — `load_dotenv()` (used in `agent.py`, `ui.py`, `bench.py`) never overrides an already-set environment variable, and `docker-compose.yml` already injects `OLLAMA_BASE_URL=http://host.docker.internal:11434` as a container env var. You still need `.env` for `WEATHER_API_KEY` / `SEARCH_API_KEY` if you use those — run `cp .env.example .env` inside the container (or on the host, since it's bind-mounted) and fill them in.
-- `host.docker.internal` is provided automatically by Docker Desktop; the compose file's `extra_hosts: host.docker.internal:host-gateway` covers plain Docker Engine under WSL2 too.
-- If the container still can't reach Ollama, set `OLLAMA_HOST=0.0.0.0` as a host environment variable for the Ollama service and restart it, so it listens on all interfaces instead of only `127.0.0.1`.
+- The bridge only works when the Mac and VM share a real LAN segment — it won't reach Ollama over a VPN that isolates LAN traffic.
+- `make models` downloads land on the **host** (that's where Ollama and its model store live); the VM only ever calls the HTTP API.
+- Stop or remove the VM with `multipass stop omaha-lab` / `multipass delete omaha-lab --purge`.
 
 ---
 
