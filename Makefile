@@ -36,11 +36,17 @@ venv:
 		exit 1; \
 	}
 
-deps:
-	$(PIP) install -r requirements.txt
+deps: venv/.deps-installed
 
-spacy-model:
+venv/.deps-installed: requirements.txt | venv
+	$(PIP) install -r requirements.txt
+	@touch $@
+
+spacy-model: venv/.spacy-installed
+
+venv/.spacy-installed: | venv/.deps-installed
 	$(PYTHON) -m spacy download en_core_web_lg
+	@touch $@
 
 env:
 	@if [ ! -f .env ]; then \
