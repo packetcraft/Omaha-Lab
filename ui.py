@@ -69,6 +69,25 @@ _try_phoenix()
 _BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 _MODEL    = os.getenv("OLLAMA_MODEL",    "qwen2.5:1.5b")
 
+
+def _list_models(base_url: str) -> list[str]:
+    """Query Ollama for locally pulled models that support tool-calling.
+    Falls back to just the configured default if Ollama is unreachable
+    or nothing tool-capable is found (e.g. `--rag on`-only setups)."""
+    try:
+        import requests as _req
+        resp = _req.get(f"{base_url}/api/tags", timeout=3)
+        resp.raise_for_status()
+        names = [
+            m["name"] for m in resp.json().get("models", [])
+            if "tools" in (m.get("capabilities") or [])
+        ]
+        if _MODEL not in names:
+            names.append(_MODEL)
+        return sorted(names) if names else [_MODEL]
+    except Exception:
+        return [_MODEL]
+
 _GUARD_LABELS: dict[str, str] = {
     "S1": "Violent Crimes",       "S2": "Non-Violent Crimes",
     "S3": "Sex-Related Crimes",   "S4": "Child Sexual Exploitation",
@@ -142,6 +161,8 @@ async def on_chat_start():
     profile = cl.user_session.get("chat_profile") or "Bare"
     default_persona, use_rag, use_guard, use_hitl = _PROFILES.get(profile, _PROFILES["Bare"])
 
+    available_models = await asyncio.to_thread(_list_models, _BASE_URL)
+
     # Chat Settings — profile presets populate all four controls; each is individually overridable.
     settings = await cl.ChatSettings([
         Select(
@@ -150,12 +171,19 @@ async def on_chat_start():
             values=list(_PERSONA_OPTIONS.keys()),
             initial_value=default_persona or "none",
         ),
+        Select(
+            id="model",
+            label="Model",
+            values=available_models,
+            initial_value=_MODEL if _MODEL in available_models else available_models[0],
+        ),
         Switch(id="guard", label="Guard (Llama Guard 3 + Presidio)", initial=use_guard),
         Switch(id="rag",   label="RAG",                              initial=use_rag),
         Switch(id="hitl",  label="HITL (Human-in-the-Loop)",         initial=use_hitl),
     ]).send()
 
     persona_slug = _PERSONA_OPTIONS.get(settings.get("persona", "none"))
+    model        = settings.get("model", _MODEL)
     use_rag      = settings.get("rag",   use_rag)
     use_guard    = settings.get("guard", use_guard)
     use_hitl     = settings.get("hitl",  use_hitl)
@@ -164,14 +192,15 @@ async def on_chat_start():
         content=f"**Lab Mode: {profile}** — initialising agent…", author="System"
     ).send()
 
-    await _init_session(persona_slug, use_rag, use_guard, use_hitl)
+    await _init_session(persona_slug, use_rag, use_guard, use_hitl, model)
 
 
-async def _init_session(persona_slug, use_rag, use_guard, use_hitl):
+async def _init_session(persona_slug, use_rag, use_guard, use_hitl, model=None):
     """Build the agent session and store it. Called at start and on settings change."""
+    model = model or _MODEL
     try:
         session = await asyncio.to_thread(
-            _build_session, persona_slug, use_rag, use_guard, use_hitl
+            _build_session, persona_slug, use_rag, use_guard, use_hitl, model
         )
     except Exception as exc:
         await cl.Message(
@@ -183,6 +212,7 @@ async def _init_session(persona_slug, use_rag, use_guard, use_hitl):
     cl.user_session.set("session", session)
 
     parts = [f"persona: **{persona_slug.replace('_', ' ').title() if persona_slug else 'none'}**"]
+    parts.append(f"model: **{model}**")
     parts.append(f"rag: **{'on' if use_rag else 'off'}**")
     parts.append(f"guard: **{'on' if use_guard else 'off'}**")
     parts.append(f"hitl: **{'on' if use_hitl else 'off'}**")
@@ -195,22 +225,25 @@ async def _init_session(persona_slug, use_rag, use_guard, use_hitl):
 
 @cl.on_settings_update
 async def on_settings_update(settings):
-    """Rebuild the agent when any Chat Setting changes. All four values come from the widgets."""
+    """Rebuild the agent when any Chat Setting changes. All values come from the widgets."""
     persona_slug = _PERSONA_OPTIONS.get(settings.get("persona", "none"))
+    model        = settings.get("model", _MODEL)
     use_rag      = settings.get("rag",   False)
     use_guard    = settings.get("guard", False)
     use_hitl     = settings.get("hitl",  False)
 
     label = persona_slug.replace("_", " ").title() if persona_slug else "none"
     await cl.Message(
-        content=f"Settings changed (persona: **{label}**) — rebuilding agent…", author="System"
+        content=f"Settings changed (persona: **{label}**, model: **{model}**) — rebuilding agent…",
+        author="System",
     ).send()
 
-    await _init_session(persona_slug, use_rag, use_guard, use_hitl)
+    await _init_session(persona_slug, use_rag, use_guard, use_hitl, model)
 
 
-def _build_session(persona_slug, use_rag, use_guard, use_hitl):
+def _build_session(persona_slug, use_rag, use_guard, use_hitl, model=None):
     """Synchronous setup — runs in a background thread via asyncio.to_thread."""
+    model = model or _MODEL
     from graph import build_graph
     from tools import TOOLS
     from agent import _filter_tools, _setup_rag, _setup_guard
@@ -241,7 +274,7 @@ def _build_session(persona_slug, use_rag, use_guard, use_hitl):
         hitl_factory = lambda: make_ui_hitl_node(_approval_fn)
 
     graph = build_graph(
-        model=_MODEL,
+        model=model,
         base_url=_BASE_URL,
         tools=active_tools,
         system_prompt=persona.system_prompt if persona else None,
