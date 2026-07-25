@@ -21,6 +21,9 @@ env/
 # Vector store
 .chroma/
 
+# Chainlit local element storage (no DB configured — falls back to disk cache)
+.files/
+
 # Logs (keep .gitkeep, ignore actual log files)
 logs/*.jsonl
 logs/*.log
