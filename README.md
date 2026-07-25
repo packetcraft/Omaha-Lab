@@ -127,7 +127,10 @@ ollama pull llama-guard3
 ```bash
 multipass shell omaha-lab
 
-sudo apt update && sudo apt install -y python3.11 python3.11-venv git build-essential
+# Current Ubuntu releases (24.04+) dropped python3.11 from the default repos —
+# the deadsnakes PPA still packages it:
+sudo add-apt-repository -y ppa:deadsnakes/ppa && sudo apt update
+sudo apt install -y python3.11 python3.11-venv git build-essential
 git clone https://github.com/omaha-lab/omaha-lab.git
 cd omaha-lab
 ```

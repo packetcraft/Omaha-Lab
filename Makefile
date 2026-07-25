@@ -24,7 +24,17 @@ endif
 install: venv deps spacy-model env  ## Full first-run setup: venv + all deps (core, UI, observability) + spacy model + .env
 
 venv:
-	$(VENV_CMD)
+	@$(VENV_CMD) || { \
+		echo ""; \
+		echo "Python 3.11 venv creation failed — likely missing on this machine."; \
+		echo "  macOS:   brew install python@3.11"; \
+		echo "  Windows: winget install Python.Python.3.11  (or install from python.org)"; \
+		echo "  Ubuntu 24.04+ / 26.04 (python3.11 dropped from default repos):"; \
+		echo "    sudo add-apt-repository ppa:deadsnakes/ppa && sudo apt update"; \
+		echo "    sudo apt install python3.11 python3.11-venv"; \
+		echo "  Other Linux: use pyenv, or your distro's package manager"; \
+		exit 1; \
+	}
 
 deps:
 	$(PIP) install -r requirements.txt
