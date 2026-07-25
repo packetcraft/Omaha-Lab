@@ -106,20 +106,24 @@ _GUARD_LABELS: dict[str, str] = {
 # ---------------------------------------------------------------------------
 
 _PROFILES: dict[str, tuple] = {
-    "Bare":         (None,               False, False, False),
-    "Guarded":      (None,               False, True,  True),
+    # Bare/Guarded need the full tool set available — Bare to demonstrate an
+    # open attack surface, Guarded so HITL/guard layers have risky tool calls
+    # to actually intercept. "admin" (not None) keeps that intent explicit.
+    "Bare":         ("admin",            False, False, False),
+    "Guarded":      ("admin",            False, True,  True),
     "RAG Analyst":  ("security_analyst", True,  False, False),
     "Full Defense": ("hr_assistant",     True,  True,  True),
 }
 
 # Persona options available in Chat Settings
 _PERSONA_OPTIONS: dict[str, str | None] = {
-    "none":              None,
+    "simple-chat":       "simple_chat",
     "customer_service":  "customer_service",
     "hr_assistant":      "hr_assistant",
     "security_analyst":  "security_analyst",
     "code_assistant":    "code_assistant",
     "devops_assistant":  "devops_assistant",
+    "admin":             "admin",
 }
 
 # Persona -> [(display name, path relative to labs/), ...], sourced from each
@@ -298,7 +302,7 @@ async def on_chat_start():
             id="persona",
             label="Persona",
             values=list(_PERSONA_OPTIONS.keys()),
-            initial_value=default_persona or "none",
+            initial_value=default_persona or "simple-chat",
         ),
         Select(
             id="model",
@@ -311,7 +315,7 @@ async def on_chat_start():
         Switch(id="hitl",  label="HITL (Human-in-the-Loop)",         initial=use_hitl),
     ]).send()
 
-    persona_slug = _PERSONA_OPTIONS.get(settings.get("persona", "none"))
+    persona_slug = _PERSONA_OPTIONS.get(settings.get("persona", "simple-chat"))
     model        = settings.get("model", _MODEL)
     use_rag      = settings.get("rag",   use_rag)
     use_guard    = settings.get("guard", use_guard)
@@ -342,7 +346,7 @@ async def _init_session(persona_slug, use_rag, use_guard, use_hitl, model=None):
 
     cl.user_session.set("session", session)
 
-    parts = [f"persona: **{persona_slug.replace('_', ' ').title() if persona_slug else 'none'}**"]
+    parts = [f"persona: **{persona_slug.replace('_', ' ').title() if persona_slug else 'simple-chat'}**"]
     parts.append(f"model: **{model}**")
     parts.append(f"rag: **{'on' if use_rag else 'off'}**")
     parts.append(f"guard: **{'on' if use_guard else 'off'}**")
@@ -361,13 +365,13 @@ async def _init_session(persona_slug, use_rag, use_guard, use_hitl, model=None):
 @cl.on_settings_update
 async def on_settings_update(settings):
     """Rebuild the agent when any Chat Setting changes. All values come from the widgets."""
-    persona_slug = _PERSONA_OPTIONS.get(settings.get("persona", "none"))
+    persona_slug = _PERSONA_OPTIONS.get(settings.get("persona", "simple-chat"))
     model        = settings.get("model", _MODEL)
     use_rag      = settings.get("rag",   False)
     use_guard    = settings.get("guard", False)
     use_hitl     = settings.get("hitl",  False)
 
-    label = persona_slug.replace("_", " ").title() if persona_slug else "none"
+    label = persona_slug.replace("_", " ").title() if persona_slug else "simple-chat"
     await cl.Message(
         content=f"Settings changed (persona: **{label}**, model: **{model}**) — rebuilding agent…",
         author="System",

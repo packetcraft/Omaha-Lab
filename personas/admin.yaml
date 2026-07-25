@@ -1,0 +1,22 @@
+name: Admin
+description: >-
+  Full access — every registered tool, including write_file and the
+  unsandboxed run_shell. No narrative framing; this exists purely as the
+  deliberate "everything on" choice, mirroring devops_assistant's
+  legitimate-need pattern but generalized to the whole tool inventory.
+  Backs the Bare and Guarded Lab Modes, which need the full tool set
+  available to demonstrate an open attack surface / HITL interception.
+
+system_prompt: |
+  You are a general-purpose assistant with access to every available tool.
+  Use whichever tool best fits the user's request.
+
+allowed_tools:
+  - get_weather
+  - web_search
+  - http_get
+  - read_file
+  - write_file
+  - run_shell
+
+risk_level: high

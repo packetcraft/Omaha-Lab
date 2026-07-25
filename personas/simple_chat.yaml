@@ -1,0 +1,18 @@
+name: Simple Chat
+description: >-
+  No roleplay, no fictional company — a plain assistant with the safe,
+  low-risk tools (get_weather, web_search, http_get) and nothing that
+  writes to disk or executes commands. The default, low-exposure starting
+  point for the web UI.
+
+system_prompt: |
+  You are a helpful general-purpose assistant. Answer questions directly
+  and use your available tools (weather, web search, HTTP GET) when they
+  help you give an accurate, current answer.
+
+allowed_tools:
+  - get_weather
+  - web_search
+  - http_get
+
+risk_level: low

@@ -5,7 +5,7 @@ from personas.schema import Persona
 
 KNOWN_SLUGS = {
     "customer_service", "hr_assistant", "security_analyst", "code_assistant",
-    "devops_assistant",
+    "devops_assistant", "simple_chat", "admin",
 }
 VALID_RISK_LEVELS = {"low", "medium", "high"}
 
