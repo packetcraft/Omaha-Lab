@@ -12,6 +12,7 @@ import asyncio
 import json
 import os
 import queue
+import re
 import sys
 import threading
 import uuid
@@ -153,7 +154,7 @@ def _load_lab_docs(persona_slug: str | None) -> list[cl.Text]:
     """Return cl.Text side-panel elements for every lab referenced by this persona.
     Missing files are skipped rather than raised — a typo here shouldn't break
     session setup."""
-    elements = []
+    elements: list[cl.Text] = []
     for title, rel_path in _PERSONA_LABS.get(persona_slug or "", []):
         path = _LABS_DIR / rel_path
         try:
@@ -162,6 +163,90 @@ def _load_lab_docs(persona_slug: str | None) -> list[cl.Text]:
             continue
         elements.append(cl.Text(name=title, content=content, display="side"))
     return elements
+
+
+# ---------------------------------------------------------------------------
+# General Lab Guide browser — every lab, not just the current persona's
+# ---------------------------------------------------------------------------
+
+_MODULE_NAMES: dict[int, str] = {
+    1: "Module 1 — Foundations",
+    2: "Module 2 — Offensive Security",
+    3: "Module 3 — Defensive Architecture",
+    4: "Module 4 — Architecture Deep Dive",
+}
+
+_LAB_FILENAME_RE = re.compile(r"^lab(\d+)_(\d+)_")
+
+
+def _discover_labs() -> list[dict]:
+    """Glob every lab doc under labs/module*/ and pull its title from the
+    first line ("# Lab X.Y — Title"). Computed once at import time — the
+    lab set doesn't change while the app is running."""
+    labs = []
+    for path in sorted(_LABS_DIR.glob("module*/*.md")):
+        m = _LAB_FILENAME_RE.match(path.name)
+        if not m:
+            continue
+        try:
+            first_line = path.read_text(encoding="utf-8").splitlines()[0]
+        except (OSError, IndexError):
+            continue
+        labs.append({
+            "module": int(m.group(1)),
+            "number": int(m.group(2)),
+            "title":  first_line.lstrip("#").strip(),
+            "path":   str(path.relative_to(_LABS_DIR)),
+        })
+    labs.sort(key=lambda d: (d["module"], d["number"]))
+    return labs
+
+
+_ALL_LABS = _discover_labs()
+
+
+def _labs_by_module() -> dict[int, list[dict]]:
+    grouped: dict[int, list[dict]] = {}
+    for lab in _ALL_LABS:
+        grouped.setdefault(lab["module"], []).append(lab)
+    return grouped
+
+
+@cl.action_callback("browse_labs")
+async def on_browse_labs(action: cl.Action) -> None:
+    """One flat index of every lab, grouped by module for readability — no
+    drill-down, no intermediate screen to lose track of."""
+    grouped = _labs_by_module()
+    lines = ["**Lab Guide** — click a number below to open that lab.\n"]
+    actions = []
+    for m in sorted(grouped):
+        lines.append(f"\n**{_MODULE_NAMES.get(m, f'Module {m}')}**")
+        for lab in grouped[m]:
+            lines.append(f"- {lab['module']}.{lab['number']} — {lab['title'].split('—', 1)[-1].strip()}")
+            actions.append(cl.Action(
+                name="open_lab",
+                label=f"{lab['module']}.{lab['number']}",
+                payload={"path": lab["path"]},
+            ))
+    await cl.Message(content="\n".join(lines), author="System", actions=actions).send()
+
+
+@cl.action_callback("open_lab")
+async def on_open_lab(action: cl.Action) -> None:
+    rel_path = action.payload["path"]
+    path = _LABS_DIR / rel_path
+    try:
+        content = path.read_text(encoding="utf-8")
+    except OSError:
+        await cl.Message(content=f"Could not open `{rel_path}`.", author="System").send()
+        return
+
+    title = next((lab["title"] for lab in _ALL_LABS if lab["path"] == rel_path), rel_path)
+    await cl.Message(
+        content=f"Opened **{title}** — click the panel below to read it.",
+        author="System",
+        elements=[cl.Text(name=title, content=content, display="side")],
+    ).send()
 
 
 _PROFILE_DESC: dict[str, str] = {
@@ -233,7 +318,9 @@ async def on_chat_start():
     use_hitl     = settings.get("hitl",  use_hitl)
 
     await cl.Message(
-        content=f"**Lab Mode: {profile}** — initialising agent…", author="System"
+        content=f"**Lab Mode: {profile}** — initialising agent…",
+        author="System",
+        actions=[cl.Action(name="browse_labs", label="📖 Browse All Labs", payload={})],
     ).send()
 
     await _init_session(persona_slug, use_rag, use_guard, use_hitl, model)
