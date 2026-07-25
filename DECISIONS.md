@@ -13,6 +13,7 @@ This document records significant decisions made during the design and evolution
 | [D-01](#d-01--n8n-as-alternative-orchestration-platform) | n8n as alternative orchestration platform | Rejected | 2026-05-06 |
 | [D-02](#d-02--live-data-flow-visualization-for-student-learning) | Live data flow visualization for student learning | Accepted | 2026-05-06 |
 | [D-03](#d-03--attack-prompt-library-schema-format-and-layer-taxonomy) | Attack prompt library: schema format and layer taxonomy | Accepted | 2026-05-07 |
+| [D-04](#d-04--os-level-seatbelt-sandboxing-for-tool-execution) | OS-level (Seatbelt) sandboxing for tool execution | Parked | 2026-07-25 |
 
 ---
 
@@ -144,6 +145,39 @@ The attack prompt library (`prompts/`) needs a file format that serves two audie
 - `bench.py` should load all `*.yaml` files under `prompts/` recursively (e.g., `glob.glob("prompts/**/*.yaml", recursive=True)`)
 - The harness should skip prompts with `rag: true` unless ChromaDB is populated, and skip prompts with `hitl: true` unless running in non-interactive mode with auto-deny
 - Prompts that require workspace file setup (e.g., `indirect-file-001.yaml`) should include a `setup:` field in future versions — the current `notes:` field documents this inline
+
+---
+
+## D-04 — OS-Level (Seatbelt) Sandboxing for Tool Execution
+
+**Date:** 2026-07-25
+**Status:** Parked
+
+### Context
+
+Tool execution (`tools/file_ops.py`, `tools/http_request.py`) is currently confined by application-level checks only — path validation against a `/workspace` root and a URL allow-list — not by OS-level process sandboxing. macOS's Seatbelt (`sandbox-exec`) framework can enforce kernel-level confinement on what a process is allowed to touch (filesystem, network, IPC) regardless of application-layer bugs, which would be a stronger guarantee for a lab whose entire premise is "assume the agent's reasoning can be manipulated."
+
+### Options evaluated
+
+| Option | Approach | Blocker |
+|---|---|---|
+| A | Seatbelt (`sandbox-exec`) profile wrapping tool execution | Reliable invocation from a non-notarized CLI tool typically needs either an unmanaged/dev-mode Mac or specific code-signing entitlements — not guaranteed on student or corporate-managed machines |
+| B | Container-level isolation (Docker) | Rejected as a project-wide requirement — see the Docker option removed from `README.md` in favor of the Multipass VM path |
+| **C** | **Application-level validation only (current)** | Weaker guarantee than kernel sandboxing, but works identically on every supported platform (macOS + Windows) with no host configuration |
+
+### Decision
+
+**Parked.** Keep the current application-level guardrails (`tools/file_ops.py` workspace confinement, `tools/http_request.py` URL allow-list, HITL authorization) as the sandboxing layer for now. Seatbelt is not being implemented until testing is possible on an unmanaged Mac.
+
+### Rationale
+
+Seatbelt enforcement needs validating on a machine where the harness isn't fighting MDM/entitlement restrictions — most student and corporate laptops are managed and may block or silently degrade `sandbox-exec` profiles applied to unsigned CLI tools. Without that validation, shipping a Seatbelt profile risks failing invisibly (falling back to no confinement) rather than failing loudly, which is worse than not having it. The Multipass VM boundary introduced for Option C in `README.md` already adds a coarser layer of isolation between the app runtime and the host for that path specifically, but it does nothing for students running Option A/B natively.
+
+### Implementation notes (if revisited)
+
+- Only relevant to macOS hosts running Option A or C; Windows has no Seatbelt equivalent, so application-level checks remain the baseline there regardless.
+- Revisit once an unmanaged Apple Silicon Mac is available for testing, or if a future lab module needs to run untrusted/student-submitted tool code with stronger isolation than path/URL validation provides.
+- If implemented, it should wrap tool execution specifically (the `tools/` registry call site invoked from `graph.py`), not the whole Chainlit/agent process, to avoid restricting Chainlit's own filesystem/network needs.
 
 ---
 

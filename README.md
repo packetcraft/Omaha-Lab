@@ -69,36 +69,60 @@ cp .env.example .env           # then add your API keys
 
 ### Option C — Multipass VM (Apple Silicon: app runtime in a VM, Ollama on the Mac)
 
-Runs Chainlit, LangGraph, Phoenix, and the rest of the app runtime inside an Ubuntu (arm64) [Multipass](https://multipass.run) VM, while Ollama keeps running natively on the Mac host for Metal (GPU) acceleration. The VM reaches Ollama over a **bridged network** connection — a real LAN IP, not a Docker-style magic hostname.
+Runs Chainlit, LangGraph, Phoenix, and the rest of the app runtime inside an Ubuntu (arm64) [Multipass](https://multipass.run) VM, while Ollama keeps running natively on the Mac host for Metal (GPU) acceleration. The VM reaches Ollama over Multipass's **default network**, via the gateway address back to the host — no bridged networking or interface names to configure.
+
+```
+ macOS host                          Ubuntu VM (Multipass, arm64)
+┌───────────────┐   gateway route   ┌─────────────────────────────────────┐
+│    Ollama      │◄──────────────────│  Chainlit  (:8000) — web UI          │
+│   (:11434)     │                   │    • LangGraph  — agent orchestration│
+└───────────────┘                   │    • ChromaDB   — embedded RAG store │
+                                      │  Phoenix   (:6006) — OTEL tracing    │
+                                      └─────────────────────────────────────┘
+```
+
+LangGraph and ChromaDB aren't separate services — they run in-process inside the Chainlit app, so only Chainlit and Phoenix get their own port/box.
 
 **Requires:** macOS on Apple Silicon (M1/M2/M3+) and Multipass (`brew install --cask multipass`).
 
-**1. Let Ollama listen on the LAN, not just localhost** (run on the Mac):
+**1. Launch the VM** (default networking — no `--network` flag needed):
 
 ```bash
-launchctl setenv OLLAMA_HOST "0.0.0.0"
-# then quit and relaunch the Ollama app (or re-run `ollama serve` if started from a terminal)
+multipass launch --name omaha-lab --cpus 4 --memory 8G --disk 25G
 ```
 
-The first time the VM connects, accept the macOS Firewall prompt (or allow it manually under System Settings → Network → Firewall → Options).
+Multipass automatically pulls the arm64 Ubuntu image on Apple Silicon hosts.
 
-**2. Find the Mac's LAN IP** — the VM will use this to reach Ollama:
+**2. Expose Ollama beyond localhost** (run on the Mac):
+
+- **Ollama desktop app (easiest):** Settings → "Expose Ollama to the network" — persists across restarts, no command needed.
+- **CLI/service**, only if nothing already owns port 11434:
+  ```bash
+  OLLAMA_HOST=0.0.0.0:11434 ollama serve
+  ```
+  ("address already in use" means the desktop app or a background service already owns the port — use its toggle instead of fighting it.)
+
+Accept the macOS Firewall prompt the first time the VM connects.
+
+**3. Find the VM's gateway** (its view of the host) and verify it can reach Ollama:
 
 ```bash
-ipconfig getifaddr en0        # Wi-Fi, usually
-# ipconfig getifaddr en1      # try this if en0 is empty (wired/other adapters)
+multipass exec omaha-lab -- ip route show default
+# note the address after "via", then:
+multipass exec omaha-lab -- curl -s http://<gateway-ip>:11434/api/tags
 ```
 
-**3. Bridge Multipass to that same interface and launch the VM:**
+A JSON model list back confirms the VM can reach Ollama — fix networking here before moving on if it doesn't.
+
+**4. Pull models on the host** (this is where Ollama actually runs):
 
 ```bash
-multipass set local.bridged-network=en0        # match the interface from step 2
-multipass launch 22.04 --name omaha-lab --cpus 4 --memory 8G --disk 25G --network bridged
+ollama pull qwen2.5:1.5b
+ollama pull nomic-embed-text
+ollama pull llama-guard3
 ```
 
-Multipass automatically pulls the arm64 Ubuntu image on Apple Silicon hosts — no separate arch flag needed.
-
-**4. Shell in, install system deps, and clone the repo:**
+**5. Shell in, install system deps, and clone the repo:**
 
 ```bash
 multipass shell omaha-lab
@@ -108,29 +132,28 @@ git clone https://github.com/omaha-lab/omaha-lab.git
 cd omaha-lab
 ```
 
-**5. Point the app at the host's Ollama:**
+**6. Point the app at the host's Ollama:**
 
 ```bash
 cp .env.example .env
-# edit .env: OLLAMA_BASE_URL=http://<mac-lan-ip-from-step-2>:11434
+# edit .env: OLLAMA_BASE_URL=http://<gateway-ip-from-step-3>:11434
 ```
 
-**6. Install and run — same `make` targets as every other option:**
+**7. Install and run:**
 
 ```bash
-make install   # venv + all deps + spacy model
-make models    # pulls ~7 GB of Ollama models onto the HOST, over the bridged connection
+make install   # venv + all deps + spacy model — models were already pulled in step 4
 make run       # or run-secure / run-rag / run-full
 make ui        # Chainlit — reachable at http://<vm-ip>:8000
 make phoenix   # Phoenix — reachable at http://<vm-ip>:6006
 ```
 
-Get the VM's IP with `multipass info omaha-lab`. Unlike Docker's published ports, a bridged Multipass VM is just another machine on your LAN — no port mapping needed, just browse straight to `<vm-ip>:8000` / `<vm-ip>:6006` from the Mac.
+Get the VM's IP with `multipass info omaha-lab`; the host reaches it directly over Multipass's own network, no port mapping needed.
 
 Notes:
 
-- The bridge only works when the Mac and VM share a real LAN segment — it won't reach Ollama over a VPN that isolates LAN traffic.
-- `make models` downloads land on the **host** (that's where Ollama and its model store live); the VM only ever calls the HTTP API.
+- Don't run `make models` inside the VM — it shells out to the `ollama` CLI, which isn't installed there. Models are pulled on the host in step 4; the VM only ever calls Ollama's HTTP API.
+- The gateway address from step 3 is Multipass-managed, not the Mac's LAN IP — it stays valid across Wi-Fi/network changes, though host VPN software that reroutes all traffic can still interfere.
 - Stop or remove the VM with `multipass stop omaha-lab` / `multipass delete omaha-lab --purge`.
 
 ---
