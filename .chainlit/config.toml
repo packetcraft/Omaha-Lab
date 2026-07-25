@@ -131,7 +131,9 @@ cot = "full"
 
 # Specify a JavaScript file that can be used to customize the user interface.
 # The JavaScript file can be served from the public directory.
-# custom_js = "/public/test.js"
+# Rewrites the Phoenix Traces header link's hostname to match wherever the
+# page is actually being viewed from — see public/fix-header-links.js.
+custom_js = "/public/fix-header-links.js"
 
 # The style of alert boxes. Can be "classic" or "modern".
 alert_style = "classic"

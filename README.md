@@ -243,7 +243,7 @@ make phoenix    # opens http://127.0.0.1:6006
 
 (Or run `make dev` instead of `make ui` + `make phoenix` separately — see [Web UI](#web-ui-optional) above.)
 
-**"Phoenix Traces" header link:** the Chainlit UI's header includes a persistent link straight to Phoenix (`.chainlit/config.toml`'s `[[UI.header_links]]`), opening in a new tab. It defaults to `http://localhost:6006`, correct for Options A/B where both run on the same machine. **Multipass VM users (Option C):** edit that URL to `http://<vm-ip>:6006` — `localhost` there resolves on your Mac's browser, not the VM.
+**"Phoenix Traces" header link:** the Chainlit UI's header includes a persistent link straight to Phoenix (`.chainlit/config.toml`'s `[[UI.header_links]]`), opening in a new tab. The configured URL is `http://localhost:6006`, but a small client-side script (`public/fix-header-links.js`, wired in via `custom_js`) rewrites its hostname at page load to match wherever the page is actually being viewed from — so it opens the right Phoenix instance whether you're on Option A/B (same machine) or Option C (Multipass VM, browser on the Mac), no manual editing needed.
 
 Then run the agent with the observe flag:
 
