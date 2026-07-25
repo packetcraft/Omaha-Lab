@@ -6,8 +6,8 @@ Mode picker, pipeline diagram, and header links are all Chainlit-specific
 plumbing that a rewrite would have to reproduce from scratch for polish alone).
 Instead, polish happens incrementally through `public/theme.css`
 (`custom_css` in `.chainlit/config.toml`) plus small `custom_js` snippets
-where CSS alone can't reach (same pattern as the existing
-`public/fix-header-links.js`).
+where CSS alone can't reach — bundled together in `public/custom.js` since
+Chainlit only loads one `custom_js` file.
 
 Work through the items below one at a time — each is scoped to be a single
 sitting. Check off `Status` as they land, and note the commit hash.
@@ -26,6 +26,7 @@ done — see the `run` skill's browser-driven pattern.
 | # | Item | Where |
 |---|---|---|
 | 0 | Base cyan/navy palette (light + dark), accented code blocks, colored scrollbar, focus rings, pill-styled header link | `public/theme.css`, commit `4563269` |
+| 5 | Persona-coded accent color — `body[data-persona]` tagged by `public/custom.js`, 7 hues in `theme.css` | `public/custom.js`, `public/theme.css` |
 
 ---
 
@@ -63,27 +64,13 @@ needs the existing `--primary`/`--muted` tokens nudged, not new rules.
 **Effort/Risk:** Low, mostly eyeballing during a live session.
 **Status:** Not started.
 
-### 5. Persona-coded accent color
-**Goal:** Recolor the header/avatar based on the active persona (e.g.
-`security_analyst` vs `customer_service`) so it's visually obvious which lab
-context is active — reinforces the thing students are meant to track.
-**Approach:** CSS can't read message content, so this needs a small
-`custom_js` file (same pattern as `fix-header-links.js`) that reads the
-persona name Chainlit renders and stamps a `data-persona="..."` attribute
-somewhere stable (e.g. on `<body>`), then `theme.css` keys off
-`body[data-persona=security_analyst] { --primary: ... }` etc.
-**Effort/Risk:** Medium — needs a stable DOM hook for "current persona name"
-that survives a Chainlit upgrade; find that selector first before writing the
-CSS.
-**Status:** Not started.
-
 ### 6. Guard/blocked-message alert styling
 **Goal:** Make a LlamaGuard/Presidio block or redaction visually unmistakable
 during a live demo (red left border, warning icon) instead of blending in
 with normal system messages.
-**Approach:** Same `custom_js` pattern as #5 — detect the blocked-message
-marker text/author Chainlit renders and tag it with a class, then style that
-class in `theme.css`.
+**Approach:** Same `custom_js` pattern as #5 (see Done table) — detect the
+blocked-message marker text/author Chainlit renders and tag it with a class,
+then style that class in `theme.css`.
 **Effort/Risk:** Medium — same content-matching fragility as #5; check
 `guardrails/llama_guard.py` and `guardrails/presidio_guard.py` for the exact
 message text/author used so the JS match is precise, not a substring that

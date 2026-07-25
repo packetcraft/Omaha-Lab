@@ -115,9 +115,10 @@ code {
   outline-offset: 2px;
 }
 
-/* The "Phoenix Traces" header link (public/fix-header-links.js targets the
-   same selector) — style it as a small accent pill instead of a plain
-   link, since it's an external tool jumping out of the app chrome. */
+/* The "Phoenix Traces" header link (public/custom.js targets the same
+   selector for its own reason) — style it as a small accent pill instead
+   of a plain link, since it's an external tool jumping out of the app
+   chrome. */
 a[href*=":6006"] {
   border: 1px solid hsl(var(--primary) / 0.4);
   border-radius: 999px;
@@ -127,4 +128,81 @@ a[href*=":6006"] {
 a[href*=":6006"]:hover {
   background-color: hsl(var(--primary) / 0.1);
   border-color: hsl(var(--primary) / 0.7);
+}
+
+/* --- Persona-coded accent color ------------------------------------- *
+ * public/custom.js tags <body data-persona="..."> with the active
+ * persona slug (from ui.py's _PERSONA_OPTIONS). Recoloring --primary/--ring
+ * per persona makes the current lab context obvious at a glance instead of
+ * only being spelled out in a chat message. Hue/saturation vary per
+ * persona; lightness stays pinned to the same 34%/50% (light/dark) used by
+ * the base cyan so every persona keeps the same text-on-primary contrast.
+ * "admin" and "simple-chat" are left at the base cyan/neutral — admin is
+ * the baseline "full access" persona this palette was built around, and
+ * simple-chat is the no-persona default.
+ */
+html:root body[data-persona="simple-chat"] {
+  --primary: 215 15% 40%;
+  --ring: 215 15% 40%;
+  --sidebar-ring: 215 15% 40%;
+}
+html.dark body[data-persona="simple-chat"] {
+  --primary: 215 15% 60%;
+  --ring: 215 15% 60%;
+  --sidebar-ring: 215 15% 60%;
+}
+
+html:root body[data-persona="customer_service"] {
+  --primary: 217 91% 45%;
+  --ring: 217 91% 45%;
+  --sidebar-ring: 217 91% 45%;
+}
+html.dark body[data-persona="customer_service"] {
+  --primary: 217 91% 60%;
+  --ring: 217 91% 60%;
+  --sidebar-ring: 217 91% 60%;
+}
+
+html:root body[data-persona="hr_assistant"] {
+  --primary: 262 83% 45%;
+  --ring: 262 83% 45%;
+  --sidebar-ring: 262 83% 45%;
+}
+html.dark body[data-persona="hr_assistant"] {
+  --primary: 262 83% 65%;
+  --ring: 262 83% 65%;
+  --sidebar-ring: 262 83% 65%;
+}
+
+html:root body[data-persona="security_analyst"] {
+  --primary: 32 95% 40%;
+  --ring: 32 95% 40%;
+  --sidebar-ring: 32 95% 40%;
+}
+html.dark body[data-persona="security_analyst"] {
+  --primary: 32 95% 55%;
+  --ring: 32 95% 55%;
+  --sidebar-ring: 32 95% 55%;
+}
+
+html:root body[data-persona="code_assistant"] {
+  --primary: 142 71% 35%;
+  --ring: 142 71% 35%;
+  --sidebar-ring: 142 71% 35%;
+}
+html.dark body[data-persona="code_assistant"] {
+  --primary: 142 71% 45%;
+  --ring: 142 71% 45%;
+  --sidebar-ring: 142 71% 45%;
+}
+
+html:root body[data-persona="devops_assistant"] {
+  --primary: 160 84% 32%;
+  --ring: 160 84% 32%;
+  --sidebar-ring: 160 84% 32%;
+}
+html.dark body[data-persona="devops_assistant"] {
+  --primary: 160 84% 42%;
+  --ring: 160 84% 42%;
+  --sidebar-ring: 160 84% 42%;
 }

@@ -133,9 +133,10 @@ custom_css = "/public/theme.css"
 
 # Specify a JavaScript file that can be used to customize the user interface.
 # The JavaScript file can be served from the public directory.
-# Rewrites the Phoenix Traces header link's hostname to match wherever the
-# page is actually being viewed from — see public/fix-header-links.js.
-custom_js = "/public/fix-header-links.js"
+# Chainlit only loads one custom_js file, so every small DOM hook (Phoenix
+# header link host rewrite, persona-coded accent color, ...) lives together
+# in public/custom.js — see the top of that file for the index.
+custom_js = "/public/custom.js"
 
 # The style of alert boxes. Can be "classic" or "modern".
 alert_style = "classic"
