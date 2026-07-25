@@ -74,7 +74,7 @@ def build_graph(
     hitl_node_factory=None,    # Optional override: callable() -> node fn (e.g. for Chainlit UI)
     max_iterations: int = 10,  # Hard cap on agent_node invocations per session
 ):
-    model = model or os.getenv("OLLAMA_MODEL", "qwen2.5:1.5b")
+    model = model or os.getenv("OLLAMA_MODEL", "llama3.2:3b")
     base_url = base_url or os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
     tools = tools if tools is not None else list(_DEFAULT_TOOLS)
 

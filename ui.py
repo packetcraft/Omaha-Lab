@@ -67,7 +67,7 @@ def _try_phoenix() -> None:
 _try_phoenix()
 
 _BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-_MODEL    = os.getenv("OLLAMA_MODEL",    "qwen2.5:1.5b")
+_MODEL    = os.getenv("OLLAMA_MODEL",    "llama3.2:3b")
 
 
 def _list_models(base_url: str) -> list[str]:
@@ -120,6 +120,49 @@ _PERSONA_OPTIONS: dict[str, str | None] = {
     "code_assistant":    "code_assistant",
     "devops_assistant":  "devops_assistant",
 }
+
+# Persona -> [(display name, path relative to labs/), ...], sourced from each
+# persona YAML's "Used in: Lab X.Y" description text.
+_PERSONA_LABS: dict[str, list[tuple[str, str]]] = {
+    "customer_service": [
+        ("Lab 2.1 — Direct Injection",          "module2/lab2_1_direct_injection.md"),
+        ("Lab 2.5 — System Prompt Leakage",     "module2/lab2_5_system_prompt_leakage.md"),
+    ],
+    "hr_assistant": [
+        ("Lab 2.4 — PII Extraction",            "module2/lab2_4_pii_extraction.md"),
+        ("Lab 2.6 — Excessive Agency",          "module2/lab2_6_excessive_agency.md"),
+    ],
+    "security_analyst": [
+        ("Lab 2.2 — Indirect Injection (Tool)", "module2/lab2_2_indirect_injection_tool.md"),
+        ("Lab 2.3 — Indirect Injection (RAG)",  "module2/lab2_3_indirect_injection_rag.md"),
+        ("Lab 2.8 — RAG Poisoning",             "module2/lab2_8_rag_poisoning.md"),
+    ],
+    "code_assistant": [
+        ("Lab 2.7 — Improper Output Handling",  "module2/lab2_7_improper_output.md"),
+        ("Lab 3.8 — Supply Chain Hygiene",      "module3/lab3_8_supply_chain.md"),
+    ],
+    "devops_assistant": [
+        ("Lab 2.10 — Unconstrained Shell Tool", "module2/lab2_10_unconstrained_shell.md"),
+    ],
+}
+
+_LABS_DIR = Path(__file__).parent / "labs"
+
+
+def _load_lab_docs(persona_slug: str | None) -> list[cl.Text]:
+    """Return cl.Text side-panel elements for every lab referenced by this persona.
+    Missing files are skipped rather than raised — a typo here shouldn't break
+    session setup."""
+    elements = []
+    for title, rel_path in _PERSONA_LABS.get(persona_slug or "", []):
+        path = _LABS_DIR / rel_path
+        try:
+            content = path.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        elements.append(cl.Text(name=title, content=content, display="side"))
+    return elements
+
 
 _PROFILE_DESC: dict[str, str] = {
     "Bare": (
@@ -218,7 +261,11 @@ async def _init_session(persona_slug, use_rag, use_guard, use_hitl, model=None):
     parts.append(f"guard: **{'on' if use_guard else 'off'}**")
     parts.append(f"hitl: **{'on' if use_hitl else 'off'}**")
 
-    await cl.Message(content="Ready — " + " · ".join(parts), author="System").send()
+    lab_docs = _load_lab_docs(persona_slug)
+    ready_content = "Ready — " + " · ".join(parts)
+    if lab_docs:
+        ready_content += f"\n\nRelated lab(s) attached below — click to open. ({len(lab_docs)})"
+    await cl.Message(content=ready_content, author="System", elements=lab_docs).send()
 
     diagram = _pipeline_mermaid(use_rag, use_guard, use_hitl)
     await cl.Message(content=f"**Pipeline topology**\n\n{diagram}", author="System").send()

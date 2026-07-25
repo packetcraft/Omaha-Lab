@@ -414,8 +414,8 @@ def main() -> None:
     )
     parser.add_argument(
         "--model",
-        default=os.getenv("OLLAMA_MODEL", "qwen2.5:1.5b"),
-        help="Ollama model name  (default: $OLLAMA_MODEL or llama3.1:8b)",
+        default=os.getenv("OLLAMA_MODEL", "llama3.2:3b"),
+        help="Ollama model name  (default: $OLLAMA_MODEL or llama3.2:3b)",
     )
     parser.add_argument(
         "--base-url",

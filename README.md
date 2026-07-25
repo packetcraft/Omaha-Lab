@@ -57,7 +57,7 @@ venv/bin/python -m spacy download en_core_web_lg    # macOS
 venv/Scripts/python -m spacy download en_core_web_lg # Windows
 
 # 5. Pull Ollama models (~7 GB total)
-ollama pull qwen2.5:1.5b       # default model, CPU-friendly
+ollama pull llama3.2:3b        # default model, CPU-friendly
 ollama pull nomic-embed-text   # RAG embeddings
 ollama pull llama-guard3       # input safety classifier
 
@@ -117,7 +117,7 @@ A JSON model list back confirms the VM can reach Ollama — fix networking here 
 **4. Pull models on the host** (this is where Ollama actually runs):
 
 ```bash
-ollama pull qwen2.5:1.5b
+ollama pull llama3.2:3b
 ollama pull nomic-embed-text
 ollama pull llama-guard3
 ```
@@ -314,7 +314,7 @@ User Input
 | Layer | Technology |
 |---|---|
 | Local LLM inference | Ollama (Metal / CUDA / CPU) |
-| Default model | Qwen 2.5 1.5B — CPU-friendly, supports tool calling |
+| Default model | Llama 3.2 3B — CPU-friendly, more reliable tool calling than the previous 1.5B default |
 | Full-power option | Qwen 2.5 7B — stronger reasoning, ~8 GB VRAM |
 | Agent orchestration | LangGraph (ReAct loop) |
 | Vector store / RAG | ChromaDB + nomic-embed-text |

@@ -55,8 +55,8 @@ env:
 		echo ".env already exists, skipping"; \
 	fi
 
-models:  ## Pull all required Ollama models (qwen2.5:1.5b, nomic-embed-text, llama-guard3)
-	ollama pull qwen2.5:1.5b
+models:  ## Pull all required Ollama models (llama3.2:3b, nomic-embed-text, llama-guard3)
+	ollama pull llama3.2:3b
 	ollama pull nomic-embed-text
 	ollama pull llama-guard3
 
