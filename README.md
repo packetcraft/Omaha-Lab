@@ -162,6 +162,38 @@ Notes:
 
 ---
 
+## Day-to-Day Use
+
+Once setup is done, this is the actual resume-work loop — not the one-time install steps above.
+
+**Native (Option A/B):**
+
+```bash
+make dev    # Chainlit + Phoenix, opens http://localhost:8000
+```
+
+**Multipass VM (Option C):**
+
+```bash
+multipass list                # check state — skip the next line if already "Running"
+multipass start omaha-lab
+multipass shell omaha-lab
+cd omaha-lab && make dev
+```
+
+Then browse to `http://<vm-ip>:8000` from the Mac (`multipass info omaha-lab` for the IP). The VM's disk — venv, cloned repo, `.env` — persists across `stop`/`start`; only `multipass delete omaha-lab --purge` wipes it.
+
+**Pulling code updates:**
+
+```bash
+git pull
+make install   # safe to always run — skips pip/spacy work entirely unless requirements.txt changed
+```
+
+**Stopping:** Ctrl+C the `make dev` terminal. VM users can also `multipass stop omaha-lab` afterward to free host resources — Ollama and its models stay on the Mac either way, unaffected.
+
+---
+
 ## Quick Start
 
 ```bash
