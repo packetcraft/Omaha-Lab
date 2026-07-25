@@ -27,18 +27,11 @@ done — see the `run` skill's browser-driven pattern.
 |---|---|---|
 | 0 | Base cyan/navy palette (light + dark), accented code blocks, colored scrollbar, focus rings, pill-styled header link | `public/theme.css`, commit `4563269` |
 | 5 | Persona-coded accent color — `body[data-persona]` tagged by `public/custom.js`, 7 hues in `theme.css` | `public/custom.js`, `public/theme.css` |
+| 1 | Placeholder logo/favicon — terminal-prompt (`>_`) mark, tinted per theme. Note: the logo itself doesn't show in the header in this app — Chainlit replaces that slot with the chat-profile switcher ("Bare ⌄" etc.) whenever chat profiles are configured, which this project always has. The favicon (tab icon) is the one guaranteed to render everywhere. | `public/logo_dark.svg`, `public/logo_light.svg`, `public/favicon.svg` |
 
 ---
 
 ## Backlog
-
-### 1. Branding — logo & favicon
-**Goal:** Replace Chainlit's default logo/favicon with an Omaha Lab mark.
-**Approach:** Drop `public/logo_light.png`, `public/logo_dark.png`,
-`public/favicon.ico` (or `.svg`) — Chainlit auto-detects these filenames in
-`public/`, no config change needed.
-**Effort/Risk:** Low. Needs actual artwork (or a simple generated mark) first.
-**Status:** Not started.
 
 ### 2. Typography accents
 **Goal:** Small-caps / letter-spacing on section labels (e.g. "Pipeline
