@@ -87,9 +87,14 @@ def build_graph(
     # ------------------------------------------------------------------
 
     if tools:
+        _tool_list_msg = SystemMessage(content=(
+            "Available tools:\n"
+            + "\n".join(f"- {t.name}: {t.description}" for t in tools)
+        ))
+
         def reason_node(state: AgentState) -> dict:
             messages = list(state["messages"])
-            prefix: list = [_REASON_PROMPT]
+            prefix: list = [_REASON_PROMPT, _tool_list_msg]
             if system_prompt:
                 prefix.append(SystemMessage(content=system_prompt))
             rag_ctx = state.get("rag_context") or ""
