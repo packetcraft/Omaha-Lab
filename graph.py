@@ -1,5 +1,8 @@
 from __future__ import annotations
+import json
 import os
+import re
+import uuid
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_ollama import ChatOllama
 from langgraph.graph import StateGraph, END
@@ -30,6 +33,34 @@ _REASON_PROMPT = SystemMessage(content=(
     "Output your reasoning concisely. Do NOT call any tools yet."
 ))
 
+_JSON_OBJECT_RE = re.compile(r"\{.*\}", re.DOTALL)
+
+
+def _parse_fallback_tool_call(content: str, tool_names: set[str]) -> dict | None:
+    """Recover a tool call some small models emit as JSON text in the message
+    content instead of Ollama's structured tool-calling format. When that
+    happens `response.tool_calls` stays empty, should_continue can't see it,
+    and the raw JSON gets delivered to the user as if it were the final
+    answer instead of the tool ever running."""
+    if not content or "{" not in content:
+        return None
+    candidates = [content.strip()]
+    match = _JSON_OBJECT_RE.search(content)
+    if match:
+        candidates.append(match.group(0))
+    for candidate in candidates:
+        try:
+            data = json.loads(candidate)
+        except (json.JSONDecodeError, TypeError):
+            continue
+        if not isinstance(data, dict):
+            continue
+        name = data.get("name")
+        args = data.get("arguments", data.get("parameters"))
+        if name in tool_names and isinstance(args, dict):
+            return {"name": name, "args": args}
+    return None
+
 
 def build_graph(
     model: str | None = None,
@@ -49,6 +80,7 @@ def build_graph(
 
     llm = ChatOllama(model=model, base_url=base_url)
     llm_with_tools = llm.bind_tools(tools) if tools else llm
+    _tool_names = {t.name for t in tools}
 
     # ------------------------------------------------------------------
     # Reasoning node — text-only LLM call (no tools bound), runs before agent
@@ -85,6 +117,21 @@ def build_graph(
         if reasoning:
             prefix.append(SystemMessage(content=f"Your prior reasoning:\n{reasoning}"))
         response = llm_with_tools.invoke(prefix + messages)
+
+        # Fallback: recover a tool call the model emitted as JSON text instead
+        # of using structured tool-calling (see _parse_fallback_tool_call).
+        if tools and not getattr(response, "tool_calls", None):
+            fallback = _parse_fallback_tool_call(response.content or "", _tool_names)
+            if fallback:
+                response = AIMessage(
+                    content="",
+                    tool_calls=[{
+                        "name": fallback["name"],
+                        "args": fallback["args"],
+                        "id": f"call_{uuid.uuid4().hex[:8]}",
+                        "type": "tool_call",
+                    }],
+                )
 
         # Hard cap: if the iteration limit is hit and the model still wants to call
         # tools, replace the response so should_continue routes to END instead of tools.
