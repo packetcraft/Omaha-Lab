@@ -73,7 +73,7 @@ run-full:  ## Full-defense stack — all layers on, hr_assistant persona
 	$(PYTHON) agent.py --persona hr_assistant --rag on --guard on --hitl on
 
 ui:  ## Chainlit web UI (opens http://localhost:8000)
-	$(PYTHON) -m chainlit run ui.py
+	$(PYTHON) -m chainlit run ui.py --host 0.0.0.0
 
 phoenix:  ## Arize Phoenix trace server (opens http://127.0.0.1:6006)
 	$(PYTHON) -m phoenix.server.main serve
