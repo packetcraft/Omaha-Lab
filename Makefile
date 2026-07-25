@@ -6,10 +6,12 @@
 ifeq ($(OS),Windows_NT)
 	PYTHON   := venv/Scripts/python
 	PIP      := venv/Scripts/pip
+	VENV_BIN := venv/Scripts
 	VENV_CMD := py -3.11 -m venv venv
 else
 	PYTHON   := venv/bin/python
 	PIP      := venv/bin/pip
+	VENV_BIN := venv/bin
 	VENV_CMD := python3.11 -m venv venv
 endif
 
@@ -46,7 +48,7 @@ models:  ## Pull all required Ollama models (qwen2.5:1.5b, nomic-embed-text, lla
 # Run                                                                          #
 # --------------------------------------------------------------------------- #
 
-.PHONY: run run-secure run-rag run-full ui phoenix
+.PHONY: run run-secure run-rag run-full ui phoenix dev
 
 run:  ## Base agent — no guardrails, no RAG
 	$(PYTHON) agent.py
@@ -65,6 +67,9 @@ ui:  ## Chainlit web UI (opens http://localhost:8000)
 
 phoenix:  ## Arize Phoenix trace server (opens http://127.0.0.1:6006)
 	$(PYTHON) -m phoenix.server.main serve
+
+dev:  ## Boot Chainlit UI + Phoenix together in one terminal (reads ./Procfile via honcho)
+	PATH="$(VENV_BIN):$$PATH" $(PYTHON) -m honcho start
 
 # --------------------------------------------------------------------------- #
 # Test                                                                         #

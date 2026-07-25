@@ -144,8 +144,7 @@ cp .env.example .env
 ```bash
 make install   # venv + all deps + spacy model — models were already pulled in step 4
 make run       # or run-secure / run-rag / run-full
-make ui        # Chainlit — reachable at http://<vm-ip>:8000
-make phoenix   # Phoenix — reachable at http://<vm-ip>:6006
+make dev       # Chainlit + Phoenix together, one terminal — reachable at http://<vm-ip>:8000 / :6006
 ```
 
 Get the VM's IP with `multipass info omaha-lab`; the host reaches it directly over Multipass's own network, no port mapping needed.
@@ -212,6 +211,8 @@ A browser-based chat interface that renders each pipeline layer as collapsible s
 make ui    # opens http://localhost:8000
 ```
 
+> **Want Phoenix tracing running alongside it?** `make dev` boots Chainlit *and* Phoenix together in a single terminal (via [honcho](https://github.com/nickstenning/honcho) reading `./Procfile`), instead of the two dedicated terminals below.
+
 Select a **Lab Mode** from the profile picker:
 
 | Lab Mode | Active layers | CLI equivalent |
@@ -234,6 +235,8 @@ Start Phoenix in a **dedicated terminal** and leave it running:
 ```bash
 make phoenix    # opens http://127.0.0.1:6006
 ```
+
+(Or run `make dev` instead of `make ui` + `make phoenix` separately — see [Web UI](#web-ui-optional) above.)
 
 Then run the agent with the observe flag:
 
