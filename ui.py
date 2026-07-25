@@ -29,13 +29,13 @@ load_dotenv()
 
 # ---------------------------------------------------------------------------
 # Phoenix observability — wire automatically if the server is already running.
-# Silent no-op if Phoenix is not running (observability is optional).
-# Start Phoenix first in a dedicated terminal:
+# Silent no-op if Phoenix never comes up (observability is optional).
+# Start Phoenix separately, or together via `make dev`:
 #   venv/Scripts/python -m phoenix.server.main serve   (Windows)
 #   venv/bin/python -m phoenix.server.main serve       (macOS)
 # ---------------------------------------------------------------------------
 
-def _try_phoenix() -> None:
+def _connect_phoenix() -> bool:
     try:
         from phoenix.otel import register
         from openinference.instrumentation.langchain import LangChainInstrumentor
@@ -43,8 +43,25 @@ def _try_phoenix() -> None:
         _req.get("http://127.0.0.1:6006", timeout=2)
         register(project_name="omaha-lab")
         LangChainInstrumentor().instrument()
+        return True
     except Exception:
-        pass  # Phoenix not running — traces disabled for this session
+        return False
+
+
+def _try_phoenix() -> None:
+    if _connect_phoenix():
+        return
+    # Phoenix wasn't up yet — e.g. `make dev` starts Chainlit and Phoenix in
+    # parallel via honcho, and Phoenix's migrations + uvicorn startup take a
+    # few seconds. Retry in the background instead of giving up permanently.
+    def _retry() -> None:
+        import time
+        for _ in range(14):
+            time.sleep(1)
+            if _connect_phoenix():
+                return
+
+    threading.Thread(target=_retry, daemon=True).start()
 
 
 _try_phoenix()
