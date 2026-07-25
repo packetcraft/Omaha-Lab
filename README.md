@@ -199,7 +199,7 @@ venv/bin/python agent.py --persona hr_assistant --rag on --guard on --hitl on --
 
 | Flag | Values | Default | Description |
 |---|---|---|---|
-| `--persona` | `customer_service`, `hr_assistant`, `security_analyst`, `code_assistant` | none | Load an agent persona |
+| `--persona` | `simple_chat`, `customer_service`, `hr_assistant`, `security_analyst`, `code_assistant`, `devops_assistant`, `admin` | none (all tools, no persona framing) | Load an agent persona |
 | `--rag` | `on` / `off` | `off` | Enable RAG retrieval from `context_docs/` |
 | `--guard` | `on` / `off` | `off` | Enable Llama Guard 3 input filter + Presidio output redaction |
 | `--hitl` | `on` / `off` | `off` | Enable Human-in-the-Loop authorization for high-risk tool calls |
@@ -227,7 +227,9 @@ Select a **Lab Mode** from the profile picker:
 | **RAG Analyst** | RAG · Security Analyst persona | `python agent.py --persona security_analyst --rag on` |
 | **Full Defense** | All layers | `python agent.py --persona hr_assistant --rag on --guard on --hitl on` |
 
-The sidebar gear icon lets you toggle individual layers mid-session without restarting. A colour-coded pipeline diagram (🟢 fired · 🔵 idle · 🔴 blocked) updates after every message. See [Lab 1.7](labs/module1/lab1_7_chainlit_pipeline_diagram.md).
+In the web UI specifically, Bare and Guarded use the `admin` persona under the hood (full tool access, no persona framing) rather than "no persona" — matching their CLI-equivalent tool exposure and, for Guarded, giving HITL something to actually intercept.
+
+The sidebar gear icon lets you toggle individual layers mid-session without restarting — Persona, Model (populated live from Ollama's `/api/tags`), Active Tools (a checklist that can only narrow the current persona's tools, never grant more), Guard, RAG, and HITL. Selecting a persona with an associated lab (e.g. `devops_assistant` → Lab 2.10) attaches that lab's doc as a clickable side panel; a **"📖 Browse All Labs"** button on the first message opens a full index of every lab across all modules. A **"Phoenix Traces"** link in the header opens Phoenix in a new tab. A colour-coded pipeline diagram (🟢 fired · 🔵 idle · 🔴 blocked) updates after every message. See [Lab 1.7](labs/module1/lab1_7_chainlit_pipeline_diagram.md).
 
 ---
 

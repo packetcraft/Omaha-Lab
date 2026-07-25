@@ -37,6 +37,7 @@ Use **Bare** or **RAG Analyst** Lab Mode for these exercises.
 - [Lab 2.7 — Improper Output Handling](https://github.com/packetcraft/Omaha-Lab/blob/master/labs/module2/lab2_7_improper_output.md)
 - [Lab 2.8 — RAG Poisoning and Embedding Attack](https://github.com/packetcraft/Omaha-Lab/blob/master/labs/module2/lab2_8_rag_poisoning.md)
 - [Lab 2.9 — Unbounded Consumption Loop](https://github.com/packetcraft/Omaha-Lab/blob/master/labs/module2/lab2_9_unbounded_consumption.md)
+- [Lab 2.10 — Excessive Agency: The Unconstrained Shell Tool](https://github.com/packetcraft/Omaha-Lab/blob/master/labs/module2/lab2_10_unconstrained_shell.md)
 
 ### Module 3 — Defensive Architecture
 

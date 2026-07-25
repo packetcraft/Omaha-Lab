@@ -14,6 +14,8 @@ This document records significant decisions made during the design and evolution
 | [D-02](#d-02--live-data-flow-visualization-for-student-learning) | Live data flow visualization for student learning | Accepted | 2026-05-06 |
 | [D-03](#d-03--attack-prompt-library-schema-format-and-layer-taxonomy) | Attack prompt library: schema format and layer taxonomy | Accepted | 2026-05-07 |
 | [D-04](#d-04--os-level-seatbelt-sandboxing-for-tool-execution) | OS-level (Seatbelt) sandboxing for tool execution | Parked | 2026-07-25 |
+| [D-05](#d-05--default-model-changed-from-qwen251b-to-llama323b) | Default model changed from qwen2.5:1.5b to llama3.2:3b | Accepted | 2026-07-25 |
+| [D-06](#d-06--web-ui-no-persona-state-no-longer-grants-every-tool) | Web UI "no persona" state no longer grants every tool | Accepted | 2026-07-25 |
 
 ---
 
@@ -178,6 +180,69 @@ Seatbelt enforcement needs validating on a machine where the harness isn't fight
 - Only relevant to macOS hosts running Option A or C; Windows has no Seatbelt equivalent, so application-level checks remain the baseline there regardless.
 - Revisit once an unmanaged Apple Silicon Mac is available for testing, or if a future lab module needs to run untrusted/student-submitted tool code with stronger isolation than path/URL validation provides.
 - If implemented, it should wrap tool execution specifically (the `tools/` registry call site invoked from `graph.py`), not the whole Chainlit/agent process, to avoid restricting Chainlit's own filesystem/network needs.
+
+---
+
+## D-05 — Default Model Changed from qwen2.5:1.5b to llama3.2:3b
+
+**Date:** 2026-07-25
+**Status:** Accepted
+
+### Context
+
+`qwen2.5:1.5b` was the original default per the PRD — CPU-friendly, supports tool calling, chosen as the baseline every lab must work with. Live trace review during this session (via Phoenix, on real Ollama traffic) surfaced repeated reliability failures at that model size.
+
+### Evidence
+
+- **Tool call emitted as JSON text instead of structured `tool_calls`** — a "search for latest news on PANW" prompt produced a raw, unexecuted `{"name": "web_search", ...}` string delivered as the final answer instead of the tool ever running.
+- **Wrong tool chosen despite the correct one being explicitly listed** — a Mysuru weather query picked `web_search` over `get_weather` even after the Reason node's prompt was fixed (see D-04's sibling fix, the tool-list injection in `graph.py`) to name every available tool and its description.
+- **Entity hallucination** — a misspelled "what is the weather in mysure" prompt caused the model to reason about and search for **New York** weather instead — a city never mentioned anywhere in the prompt, with a completely fresh conversation thread (ruled out as context bleed from prior turns).
+- **Confirmed model-size-driven**: re-running the same/similar prompts against `llama3.2:3b` resolved all three failure modes — correct tool selection with justified reasoning, correct entity extraction, no hallucination.
+
+### Decision
+
+Default changed to `llama3.2:3b` in `graph.py`, `agent.py` (`--model` flag default), `ui.py`, and the `Makefile`'s `models` target.
+
+### Rationale
+
+`llama3.2:3b` stays CPU-friendly (comparable pull size to the old default) while being meaningfully more reliable at both tool selection and entity extraction — the two failure classes observed. `qwen2.5:7b` remains the documented "higher-end machines" upgrade path for stronger reasoning where 8GB+ VRAM is available.
+
+### Implementation notes
+
+- `qwen2.5:1.5b` still works and is not removed from anywhere — it's simply no longer the default. The PRD's original rationale for choosing it (Section on model selection) is left as historical record, not corrected in place; this entry is the "we changed our mind, here's why" record per this document's own stated purpose.
+- Lab docs with hardcoded example output referencing `qwen2.5:1.5b` (`lab1_1_environment_setup.md`, `lab1_6_visualizing_the_pipeline.md`, `lab1_7_chainlit_pipeline_diagram.md`, `lab2_2_indirect_injection_tool.md`) were updated to match.
+
+---
+
+## D-06 — Web UI "No Persona" State No Longer Grants Every Tool
+
+**Date:** 2026-07-25
+**Status:** Accepted
+
+### Context
+
+`_filter_tools(TOOLS, None)` returning every registered tool unfiltered is a longstanding, intentional CLI convention — plain `python agent.py` with no `--persona` flag is "Bare" mode, deliberately fully open, used throughout Module 2's offensive labs. The web UI's Persona dropdown had a `"none"` option that mapped to the same `None` sentinel, inheriting that same "all tools" behavior — including `run_shell` (added for Lab 2.10) and `write_file` — reachable with zero framing or warning, selectable at any point mid-session via Chat Settings regardless of which Lab Mode a session started in.
+
+### Options evaluated
+
+| Option | Approach | Tradeoff |
+|---|---|---|
+| A | Keep `"none"` as a full-access shortcut (status quo) | Simple, but undermines the persona-gating model D-04's sibling work built around `run_shell`/`devops_assistant` — a dangerous tool reachable by accident, not deliberate choice |
+| **B** | Split into a genuinely restricted `simple_chat` persona + a new, explicit `admin` persona for full access | Matches the existing `devops_assistant` pattern (legitimate-need framing for a risky tool); requires updating every place that assumed `None` meant "no persona, but every tool" |
+
+### Decision
+
+**Option B.** `simple_chat` (new persona: `get_weather`, `web_search`, `http_get` — every `"low"`-risk tool per `risk_registry.py`, nothing that writes to disk or executes commands) is what the Persona dropdown's default/no-selection state now actually loads. `admin` (new persona: all 6 tools, including `write_file` and `run_shell`) is the sole deliberate "everything" choice.
+
+`_PROFILES`' `Bare` and `Guarded` Lab Modes previously defaulted persona to `None` too, which under the old semantics meant "all tools" — Bare needs that for its "attack surface fully open" framing, and Guarded needs it so HITL/guard layers have risky tool calls to actually intercept. Both now explicitly default to `admin` instead of silently inheriting the new restricted `simple_chat` behavior, preserving their original documented intent.
+
+### Rationale
+
+Same principle as `devops_assistant`/`run_shell`: a capability with real blast radius should require a deliberate, labeled choice, not be the accidental default state of a settings panel a student might not even open. Splitting `simple_chat` from `admin` also opens the door to the tools multi-select feature (subtract-only within whatever the current persona already allows) added in the same work — without this split, "subtract from `None`" wouldn't have meant anything coherent.
+
+### Scope
+
+**CLI is intentionally untouched.** `agent.py` with no `--persona` flag still resolves to `persona=None` → all tools — several Module 2 labs (2.6, 2.9, others) are written assuming plain `python agent.py` grants full tool access, and changing that CLI-wide would have broken their documented instructions. This decision only affects the web UI's persona dropdown.
 
 ---
 

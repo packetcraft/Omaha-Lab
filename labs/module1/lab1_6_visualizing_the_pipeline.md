@@ -136,7 +136,7 @@ Because Phoenix is already running, agent.py connects to it and prints:
 ```
 Phoenix: traces → http://127.0.0.1:6006
 
-Omaha-Lab Agent  |  model: qwen2.5:1.5b
+Omaha-Lab Agent  |  model: llama3.2:3b
 Persona:         (none)
 Tools:           get_weather, web_search, http_get, read_file, write_file
 RAG:             off

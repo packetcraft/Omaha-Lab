@@ -89,7 +89,7 @@ Chainlit sends three System messages:
 
 ```
 Lab Mode: Bare — initialising agent…
-Ready — persona: none · rag: off · guard: off · hitl: off
+Ready — persona: Admin · model: llama3.2:3b · tools: get_weather, web_search, http_get, read_file, write_file, run_shell · rag: off · guard: off · hitl: off
 Pipeline topology
   Input → 🔵 Reason → 🔵 Agent → 🔵 Tools → Response
   🟢 fired · 🔵 configured
@@ -240,8 +240,8 @@ Every node in the chain is 🟢 — the maximum-coverage path.
 Without switching profiles, open the gear icon and toggle **RAG** off while leaving Guard on. Chainlit sends:
 
 ```
-Settings changed (persona: hr assistant) — rebuilding agent…
-Ready — persona: hr assistant · rag: off · guard: on · hitl: on
+Settings changed (persona: Hr Assistant, model: llama3.2:3b) — rebuilding agent…
+Ready — persona: Hr Assistant · model: llama3.2:3b · tools: read_file, write_file, web_search · rag: off · guard: on · hitl: on
 Pipeline topology
   Input → 🔵 Input Guard → 🔵 Reason → 🔵 Agent → 🔵 HITL → 🔵 Tools → 🔵 Output Guard → Response
   🟢 fired · 🔵 configured

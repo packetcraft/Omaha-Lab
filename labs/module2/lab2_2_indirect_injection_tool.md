@@ -59,7 +59,7 @@ python agent.py --persona code_assistant
 Expected startup banner:
 
 ```
-Omaha-Lab Agent  |  model: qwen2.5:1.5b
+Omaha-Lab Agent  |  model: llama3.2:3b
 Persona:         Code Assistant [medium]
 Tools:           web_search, read_file, write_file
 RAG:             off

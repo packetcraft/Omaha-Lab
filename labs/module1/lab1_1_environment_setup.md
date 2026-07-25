@@ -71,8 +71,8 @@ Expected output: same JSON as above.
 Pull the three models used across all labs. This will take several minutes depending on your connection speed.
 
 ```bash
-# Default reasoning model — runs on CPU-only machines, supports tool calling (~1.0 GB)
-ollama pull qwen2.5:1.5b
+# Default reasoning model — runs on CPU-only machines, supports tool calling (~2.0 GB)
+ollama pull llama3.2:3b
 
 # Embedding model for RAG (~274 MB)
 ollama pull nomic-embed-text
@@ -99,7 +99,7 @@ Expected output (your versions may differ):
 
 ```
 NAME                  ID              SIZE    MODIFIED
-qwen2.5:1.5b          f2170aba9d47    1.0 GB  ...
+llama3.2:3b           a80c4f17acd5    2.0 GB  ...
 nomic-embed-text      0a109f422b47    274 MB  ...
 llama-guard3          36a04e2bff6b    6.0 GB  ...
 ```
@@ -225,7 +225,7 @@ Open `.env` in a text editor and set:
 
 ```
 OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=qwen2.5:1.5b
+OLLAMA_MODEL=llama3.2:3b
 
 WEATHER_API_KEY=your_openweathermap_key_here
 SEARCH_API_KEY=your_tavily_key_here
@@ -309,9 +309,9 @@ If you see this output, your environment is ready. Proceed to **Lab 1.2**.
 |---|---|---|
 | `Error: cannot reach Ollama` | Ollama daemon not running | Run `ollama serve` in a separate terminal |
 | `ModuleNotFoundError` | venv not activated | Run `source venv/bin/activate` (or `Scripts/activate` on Windows) |
-| `Warning: model 'qwen2.5:1.5b' not found` | Model not yet pulled | Run `ollama pull qwen2.5:1.5b` |
+| `Warning: model 'llama3.2:3b' not found` | Model not yet pulled | Run `ollama pull llama3.2:3b` |
 | `pip install` fails on `presidio-*` | Missing build tools | Install `build-essential` (Linux) or Xcode CLI tools (macOS) |
-| Slow responses (>60s per turn) | CPU inference on a large model | Ensure `OLLAMA_MODEL=qwen2.5:1.5b` in `.env`; 1.5b is the intended default |
+| Slow responses (>60s per turn) | CPU inference on a large model | Ensure `OLLAMA_MODEL=llama3.2:3b` in `.env`; 3b is the intended default |
 | `pydantic-core` build fails with "version (3.14) is newer than PyO3's maximum" | venv created with Python 3.14 | Recreate venv: `rm -rf venv && py -3.11 -m venv venv` |
 
 ---
