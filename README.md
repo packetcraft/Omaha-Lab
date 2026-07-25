@@ -155,6 +155,8 @@ Notes:
 - The gateway address from step 3 is Multipass-managed, not the Mac's LAN IP — it stays valid across Wi-Fi/network changes, though host VPN software that reroutes all traffic can still interfere.
 - Stop or remove the VM with `multipass stop omaha-lab` / `multipass delete omaha-lab --purge`.
 
+**Whichever option you used (A, B, or C), running the lab from here is identical** — the CLI (below), [Web UI](#web-ui-optional) (`make ui`, or `make dev` for Chainlit + Phoenix together), and [Observability](#observability--llm-traces-optional) sections all apply regardless of how you installed it.
+
 ---
 
 ## Quick Start
