@@ -139,4 +139,4 @@ The default recursion limit of 25 comes from LangGraph's built-in default. There
 
 ---
 
-**Next lab:** [Lab 3.1 — Enabling Llama Guard 3 on Inputs](../module3/lab3_1_llama_guard_inputs.md)
+**Next lab:** [Lab 2.10 — Excessive Agency: The Unconstrained Shell Tool](lab2_10_unconstrained_shell.md)

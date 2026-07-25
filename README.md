@@ -331,7 +331,7 @@ User Input
 | Module | Focus | Labs |
 |---|---|---|
 | [Module 1 — Foundations](labs/module1/) | Environment, first agent, personas, RAG, Phoenix, Chainlit | 1.1 – 1.7 |
-| [Module 2 — Offensive Security](labs/module2/) | OWASP LLM01–LLM10 attack exercises | 2.1 – 2.9 |
+| [Module 2 — Offensive Security](labs/module2/) | OWASP LLM01–LLM10 attack exercises | 2.1 – 2.10 |
 | [Module 3 — Defensive Architecture](labs/module3/) | Enable and validate each guardrail layer; measure coverage | 3.1 – 3.10 |
 | [Module 4 — Architecture Deep Dive](labs/module4/) | Read and modify the core code — LangGraph, tools, RAG, guardrails | 4.1 – 4.5 |
 
