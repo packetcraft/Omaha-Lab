@@ -22,7 +22,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 import chainlit as cl
-from chainlit.input_widget import Select, Switch
+from chainlit.input_widget import MultiSelect, Select, Switch
 from dotenv import load_dotenv
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
@@ -152,6 +152,18 @@ _PERSONA_LABS: dict[str, list[tuple[str, str]]] = {
 }
 
 _LABS_DIR = Path(__file__).parent / "labs"
+
+
+def _persona_tool_names(persona_slug: str) -> list[str]:
+    """The tool-name ceiling for a persona — what _filter_tools would
+    actually bind, not the raw allowed_tools list (which may reference a
+    typo'd/unknown tool name that _filter_tools silently drops)."""
+    from tools import TOOLS
+    from agent import _filter_tools
+    from personas import PersonaLoader
+
+    persona = PersonaLoader.load(persona_slug)
+    return [t.name for t in _filter_tools(TOOLS, persona)]
 
 
 def _load_lab_docs(persona_slug: str | None) -> list[cl.Text]:
@@ -295,6 +307,10 @@ async def on_chat_start():
     default_persona, use_rag, use_guard, use_hitl = _PROFILES.get(profile, _PROFILES["Bare"])
 
     available_models = await asyncio.to_thread(_list_models, _BASE_URL)
+    cl.user_session.set("available_models", available_models)
+
+    tool_ceiling = _persona_tool_names(default_persona)
+    cl.user_session.set("persona_slug", default_persona)
 
     # Chat Settings — profile presets populate all four controls; each is individually overridable.
     settings = await cl.ChatSettings([
@@ -310,16 +326,23 @@ async def on_chat_start():
             values=available_models,
             initial_value=_MODEL if _MODEL in available_models else available_models[0],
         ),
+        MultiSelect(
+            id="tools",
+            label="Active Tools (subset of what the persona allows)",
+            values=tool_ceiling,
+            initial=tool_ceiling,
+        ),
         Switch(id="guard", label="Guard (Llama Guard 3 + Presidio)", initial=use_guard),
         Switch(id="rag",   label="RAG",                              initial=use_rag),
         Switch(id="hitl",  label="HITL (Human-in-the-Loop)",         initial=use_hitl),
     ]).send()
 
-    persona_slug = _PERSONA_OPTIONS.get(settings.get("persona", "simple-chat"))
-    model        = settings.get("model", _MODEL)
-    use_rag      = settings.get("rag",   use_rag)
-    use_guard    = settings.get("guard", use_guard)
-    use_hitl     = settings.get("hitl",  use_hitl)
+    persona_slug   = _PERSONA_OPTIONS.get(settings.get("persona", "simple-chat"))
+    model          = settings.get("model", _MODEL)
+    selected_tools = [t for t in settings.get("tools", tool_ceiling) if t in tool_ceiling]
+    use_rag        = settings.get("rag",   use_rag)
+    use_guard      = settings.get("guard", use_guard)
+    use_hitl       = settings.get("hitl",  use_hitl)
 
     await cl.Message(
         content=f"**Lab Mode: {profile}** — initialising agent…",
@@ -327,15 +350,15 @@ async def on_chat_start():
         actions=[cl.Action(name="browse_labs", label="📖 Browse All Labs", payload={})],
     ).send()
 
-    await _init_session(persona_slug, use_rag, use_guard, use_hitl, model)
+    await _init_session(persona_slug, use_rag, use_guard, use_hitl, model, selected_tools)
 
 
-async def _init_session(persona_slug, use_rag, use_guard, use_hitl, model=None):
+async def _init_session(persona_slug, use_rag, use_guard, use_hitl, model=None, selected_tools=None):
     """Build the agent session and store it. Called at start and on settings change."""
     model = model or _MODEL
     try:
         session = await asyncio.to_thread(
-            _build_session, persona_slug, use_rag, use_guard, use_hitl, model
+            _build_session, persona_slug, use_rag, use_guard, use_hitl, model, selected_tools
         )
     except Exception as exc:
         await cl.Message(
@@ -348,6 +371,8 @@ async def _init_session(persona_slug, use_rag, use_guard, use_hitl, model=None):
 
     parts = [f"persona: **{persona_slug.replace('_', ' ').title() if persona_slug else 'simple-chat'}**"]
     parts.append(f"model: **{model}**")
+    if selected_tools is not None:
+        parts.append(f"tools: **{', '.join(selected_tools) or 'none'}**")
     parts.append(f"rag: **{'on' if use_rag else 'off'}**")
     parts.append(f"guard: **{'on' if use_guard else 'off'}**")
     parts.append(f"hitl: **{'on' if use_hitl else 'off'}**")
@@ -371,16 +396,42 @@ async def on_settings_update(settings):
     use_guard    = settings.get("guard", False)
     use_hitl     = settings.get("hitl",  False)
 
+    tool_ceiling  = _persona_tool_names(persona_slug)
+    prev_persona  = cl.user_session.get("persona_slug")
+    persona_changed = persona_slug != prev_persona
+    cl.user_session.set("persona_slug", persona_slug)
+
+    if persona_changed:
+        # The tool ceiling just changed — reset the selector to "everything
+        # this persona allows" and refresh the panel so its values= (the
+        # checkbox list itself) reflects the new ceiling, not the old one.
+        selected_tools = tool_ceiling
+        available_models = cl.user_session.get("available_models") or [model]
+        await cl.ChatSettings([
+            Select(id="persona", label="Persona", values=list(_PERSONA_OPTIONS.keys()),
+                   initial_value=settings.get("persona", "simple-chat")),
+            Select(id="model", label="Model", values=available_models, initial_value=model),
+            MultiSelect(id="tools", label="Active Tools (subset of what the persona allows)",
+                        values=tool_ceiling, initial=tool_ceiling),
+            Switch(id="guard", label="Guard (Llama Guard 3 + Presidio)", initial=use_guard),
+            Switch(id="rag",   label="RAG",                              initial=use_rag),
+            Switch(id="hitl",  label="HITL (Human-in-the-Loop)",         initial=use_hitl),
+        ]).send()
+    else:
+        # Clamp defensively — never trust a selection outside the current
+        # ceiling, even though the widget itself shouldn't allow it.
+        selected_tools = [t for t in settings.get("tools", tool_ceiling) if t in tool_ceiling]
+
     label = persona_slug.replace("_", " ").title() if persona_slug else "simple-chat"
     await cl.Message(
         content=f"Settings changed (persona: **{label}**, model: **{model}**) — rebuilding agent…",
         author="System",
     ).send()
 
-    await _init_session(persona_slug, use_rag, use_guard, use_hitl, model)
+    await _init_session(persona_slug, use_rag, use_guard, use_hitl, model, selected_tools)
 
 
-def _build_session(persona_slug, use_rag, use_guard, use_hitl, model=None):
+def _build_session(persona_slug, use_rag, use_guard, use_hitl, model=None, selected_tools=None):
     """Synchronous setup — runs in a background thread via asyncio.to_thread."""
     model = model or _MODEL
     from graph import build_graph
@@ -390,6 +441,10 @@ def _build_session(persona_slug, use_rag, use_guard, use_hitl, model=None):
 
     persona      = PersonaLoader.load(persona_slug) if persona_slug else None
     active_tools = _filter_tools(TOOLS, persona)
+    if selected_tools is not None:
+        # Subtract-only: never grant a tool the persona doesn't already
+        # allow, only narrow further within what _filter_tools returned.
+        active_tools = [t for t in active_tools if t.name in selected_tools]
     retriever    = _setup_rag(_BASE_URL) if use_rag else None
 
     llama_guard = presidio_guard = None
